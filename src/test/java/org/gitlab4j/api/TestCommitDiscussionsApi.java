@@ -20,20 +20,19 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.Spy;
 
 public class TestCommitDiscussionsApi implements Constants {
 
     private static final String COMMIT_SHA = "abcdef1234567890";
     @Mock private GitLabApi gitLabApi;
     @Mock private GitLabApiClient gitLabApiClient;
-    @Spy private FakeResponse response;
     @Captor private ArgumentCaptor<MultivaluedMap<String, String>> attributeCaptor;
+    private MockResponse response;
 
     @Before
     public void setUp() throws Exception {
         initMocks(this);
-        response.init(Discussion.class,  null,  "commit-discussions.json");
+        response = new MockResponse(Discussion.class,  null,  "commit-discussions.json");
         when(gitLabApi.getApiClient()).thenReturn(gitLabApiClient);
         when(gitLabApiClient.validateSecretToken(any())).thenReturn(true);
         when(gitLabApiClient.get(attributeCaptor.capture(), Mockito.<Object>any())).thenReturn(response);
