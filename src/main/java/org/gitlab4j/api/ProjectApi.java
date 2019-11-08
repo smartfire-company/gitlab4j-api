@@ -40,12 +40,14 @@ import javax.ws.rs.core.Response;
 import org.gitlab4j.api.GitLabApi.ApiVersion;
 import org.gitlab4j.api.models.AccessLevel;
 import org.gitlab4j.api.models.AccessRequest;
+import org.gitlab4j.api.models.Badge;
 import org.gitlab4j.api.models.Event;
 import org.gitlab4j.api.models.FileUpload;
 import org.gitlab4j.api.models.Issue;
 import org.gitlab4j.api.models.Member;
 import org.gitlab4j.api.models.Namespace;
 import org.gitlab4j.api.models.Project;
+import org.gitlab4j.api.models.ProjectFetches;
 import org.gitlab4j.api.models.ProjectFilter;
 import org.gitlab4j.api.models.ProjectHook;
 import org.gitlab4j.api.models.ProjectUser;
@@ -56,9 +58,12 @@ import org.gitlab4j.api.models.Visibility;
 
 /**
  * This class provides an entry point to all the GitLab API project calls.
+ * 
  * @see <a href="https://docs.gitlab.com/ce/api/projects.html">Projects API at GitLab</a>
- * @see <a href="https://docs.gitlab.com/ee/api/members.html">Group and project members API at GitLab</a>
- * @see <a href="https://docs.gitlab.com/ee/api/access_requests.html#group-and-project-access-requests-api">Group and project access requests API</a>
+ * @see <a href="https://docs.gitlab.com/ce/api/project_statistics.html">Project statistics API</a>
+ * @see <a href="https://docs.gitlab.com/ce/api/members.html">Group and project members API at GitLab</a>
+ * @see <a href="https://docs.gitlab.com/ce/api/access_requests.html#group-and-project-access-requests-api">Group and project access requests API</a>
+ * @see <a href="https://docs.gitlab.com/ee/api/project_badges.html">Project badges API</a>
  */
 public class ProjectApi extends AbstractApi implements Constants {
 
@@ -67,21 +72,66 @@ public class ProjectApi extends AbstractApi implements Constants {
     }
 
     /**
-     * Get a list of projects accessible by the authenticated user.
+     * Get the project fetch statistics for the last 30 days. Retrieving the statistics requires
+     * write access to the repository. Currently only HTTP fetches statistics are returned.
+     * Fetches statistics includes both clones and pulls count and are HTTP only,
+     * SSH fetches are not included.
      *
-     * <pre><code>GET /projects</code></pre>
+     * <pre><code>GitLab Endpoint: GET /project/:id/statistics</code></pre>
+     *
+     * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
+     * @return a ProjectFetches instance with the project fetch statistics for the last 30 days
+     * @throws GitLabApiException if any exception occurs during execution
+     */
+    public ProjectFetches getProjectStatistics(Object projectIdOrPath) throws GitLabApiException {
+        Response response = get(Response.Status.OK, null, "projects", getProjectIdOrPath(projectIdOrPath), "statistics");
+        return (response.readEntity(ProjectFetches.class));
+    }
+
+    /**
+     * Get an Optional instance with the value for the project fetch statistics for the last 30 days.
+     *
+     * <pre><code>GitLab Endpoint: GET /project/:id/statistics</code></pre>
+     *
+     * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
+     * @return an Optional instance with the value for the project fetch statistics for the last 30 day
+     * @throws GitLabApiException if any exception occurs during execution
+     */
+    public Optional<ProjectFetches> getOptionalProjectStatistics(Object projectIdOrPath) throws GitLabApiException {
+        try {
+            return (Optional.ofNullable(getProjectStatistics(projectIdOrPath)));
+        } catch (GitLabApiException glae) {
+            return (GitLabApi.createOptionalFromException(glae));
+        }
+    }
+
+    /**
+     * <p>Get a list of projects accessible by the authenticated user.</p>
+     *
+     * <strong>WARNING:</strong> Do not use this method to fetch projects from https://gitlab.com,
+     * gitlab.com has many 100,000's of public projects and it will take hours to fetch all of them.
+     * Instead use {@link #getProjects(int itemsPerPage)} which will return a Pager of Project instances.
+     *
+     * <pre><code>GitLab Endpoint: GET /projects</code></pre>
      *
      * @return a list of projects accessible by the authenticated user
      * @throws GitLabApiException if any exception occurs
      */
     public List<Project> getProjects() throws GitLabApiException {
+
+       String url = this.gitLabApi.getGitLabServerUrl();
+       if (url.startsWith("https://gitlab.com")) {
+           GitLabApi.getLogger().warning("Fetching all projects from " + url +
+                   " may take many hours to complete, use Pager<Project> getProjects(int) instead.");
+       }
+
        return (getProjects(getDefaultPerPage()).all());
     }
 
     /**
      * Get a list of projects accessible by the authenticated user and in the specified page range.
      *
-     * <pre><code>GET /projects</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects</code></pre>
      *
      * @param page the page to get
      * @param perPage the number of projects per page
@@ -96,7 +146,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a Pager instance of projects accessible by the authenticated user.
      *
-     * <pre><code>GET /projects</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects</code></pre>
      *
      * @param itemsPerPage the number of Project instances that will be fetched per page
      * @return a Pager instance of projects accessible by the authenticated user
@@ -109,7 +159,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a Stream of projects accessible by the authenticated user.
      *
-     * <pre><code>GET /projects</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects</code></pre>
      *
      * @return a Stream of projects accessible by the authenticated user
      * @throws GitLabApiException if any exception occurs
@@ -122,7 +172,7 @@ public class ProjectApi extends AbstractApi implements Constants {
      * Get a list of projects accessible by the authenticated user and matching the supplied filter parameters.
      * All filter parameters are optional.
      *
-     * <pre><code>GET /projects</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects</code></pre>
      *
      * @param archived limit by archived status
      * @param visibility limit by visibility public, internal, or private
@@ -154,7 +204,7 @@ public class ProjectApi extends AbstractApi implements Constants {
      * Get a list of projects accessible by the authenticated user and matching the supplied filter parameters.
      * All filter parameters are optional.
      *
-     * <pre><code>GET /projects</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects</code></pre>
      *
      * @param archived limit by archived status
      * @param visibility limit by visibility public, internal, or private
@@ -182,7 +232,7 @@ public class ProjectApi extends AbstractApi implements Constants {
      * Get a list of projects accessible by the authenticated user and matching the supplied filter parameters.
      * All filter parameters are optional.
      *
-     * <pre><code>GET /projects</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects</code></pre>
      *
      * @param archived limit by archived status
      * @param visibility limit by visibility public, internal, or private
@@ -226,7 +276,7 @@ public class ProjectApi extends AbstractApi implements Constants {
      * Get a Pager of projects accessible by the authenticated user and matching the supplied filter parameters.
      * All filter parameters are optional.
      *
-     * <pre><code>GET /projects</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects</code></pre>
      *
      * @param archived limit by archived status
      * @param visibility limit by visibility public, internal, or private
@@ -265,7 +315,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a list of projects accessible by the authenticated user that match the provided search string.
      *
-     * <pre><code>GET /projects?search=search</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects?search=search</code></pre>
      *
      * @param search the project name search criteria
      * @return a list of projects accessible by the authenticated user that match the provided search string
@@ -278,7 +328,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a list of projects accessible by the authenticated user that match the provided search string.
      *
-     * <pre><code>GET /projects?search=search</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects?search=search</code></pre>
      *
      * @param search the project name search criteria
      * @param page the page to get
@@ -295,7 +345,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a Pager of projects accessible by the authenticated user that match the provided search string.
      *
-     * <pre><code>GET /projects?search=search</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects?search=search</code></pre>
      *
      * @param search the project name search criteria
      * @param itemsPerPage the number of Project instances that will be fetched per page
@@ -310,7 +360,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a Stream of projects accessible by the authenticated user that match the provided search string.
      *
-     * <pre><code>GET /projects?search=search</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects?search=search</code></pre>
      *
      * @param search the project name search criteria
      * @return a Stream of projects accessible by the authenticated user that match the provided search string
@@ -323,7 +373,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a list of projects that the authenticated user is a member of.
      *
-     * <pre><code>GET /projects?membership=true</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects?membership=true</code></pre>
      *
      * @return a list of projects that the authenticated user is a member of
      * @throws GitLabApiException if any exception occurs
@@ -335,7 +385,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a list of projects that the authenticated user is a member of in the specified page range.
      *
-     * <pre><code>GET /projects?membership=true</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects?membership=true</code></pre>
      *
      * @param page the page to get
      * @param perPage the number of projects per page
@@ -351,7 +401,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a Pager of projects that the authenticated user is a member of.
      *
-     * <pre><code>GET /projects?membership=true</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects?membership=true</code></pre>
      *
      * @param itemsPerPage the number of Project instances that will be fetched per page
      * @return a Pager o Project instances that the authenticated user is a member of
@@ -365,7 +415,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a Stream of projects that the authenticated user is a member of.
      *
-     * <pre><code>GET /projects?membership=true</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects?membership=true</code></pre>
      *
      * @return a list of projects that the authenticated user is a member of
      * @throws GitLabApiException if any exception occurs
@@ -377,7 +427,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a list of projects owned by the authenticated user.
      *
-     * <pre><code>GET /projects?owned=true</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects?owned=true</code></pre>
      *
      * @return a list of projects owned by the authenticated user
      * @throws GitLabApiException if any exception occurs
@@ -389,7 +439,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a list of projects owned by the authenticated user in the specified page range.
      *
-     * <pre><code>GET /projects?owned=true</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects?owned=true</code></pre>
      *
      * @param page the page to get
      * @param perPage the number of projects per page
@@ -405,7 +455,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a Pager of projects owned by the authenticated user.
      *
-     * <pre><code>GET /projects?owned=true</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects?owned=true</code></pre>
      *
      * @param itemsPerPage the number of Project instances that will be fetched per page
      * @return a list of projects owned by the authenticated user
@@ -419,7 +469,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a Stream of projects owned by the authenticated user.
      *
-     * <pre><code>GET /projects?owned=true</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects?owned=true</code></pre>
      *
      * @return a Stream of projects owned by the authenticated user
      * @throws GitLabApiException if any exception occurs
@@ -431,7 +481,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a list of projects starred by the authenticated user.
      *
-     * <pre><code>GET /projects?starred=true</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects?starred=true</code></pre>
      *
      * @return a list of projects starred by the authenticated user
      * @throws GitLabApiException if any exception occurs
@@ -443,7 +493,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a list of projects starred by the authenticated user in the specified page range.
      *
-     * <pre><code>GET /projects?starred=true</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects?starred=true</code></pre>
      *
      * @param page the page to get
      * @param perPage the number of projects per page
@@ -459,7 +509,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a Pager of projects starred by the authenticated user.
      *
-     * <pre><code>GET /projects?starred=true</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects?starred=true</code></pre>
      *
      * @param itemsPerPage the number of Project instances that will be fetched per page
      * @return a Pager of projects starred by the authenticated user
@@ -473,7 +523,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a Stream of projects starred by the authenticated user.
      *
-     * <pre><code>GET /projects?starred=true</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects?starred=true</code></pre>
      *
      * @return a Stream of projects starred by the authenticated user
      * @throws GitLabApiException if any exception occurs
@@ -485,7 +535,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a list of all visible projects across GitLab for the authenticated user using the provided filter.
      *
-     * <pre><code>GET /projects</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects</code></pre>
      *
      * @param filter the ProjectFilter instance holding the filter values for the query
      * @return a list of all visible projects across GitLab for the authenticated use
@@ -499,7 +549,7 @@ public class ProjectApi extends AbstractApi implements Constants {
      * Get a list of all visible projects across GitLab for the authenticated user in the specified page range
      * using the provided filter.
      *
-     * <pre><code>GET /projects</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects</code></pre>
      *
      * @param filter the ProjectFilter instance holding the filter values for the query
      * @param page the page to get
@@ -516,7 +566,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a Pager of all visible projects across GitLab for the authenticated user using the provided filter.
      *
-     * <pre><code>GET /projects</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects</code></pre>
      *
      * @param filter the ProjectFilter instance holding the filter values for the query
      * @param itemsPerPage the number of Project instances that will be fetched per page
@@ -531,7 +581,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a Stream of all visible projects across GitLab for the authenticated user using the provided filter.
      *
-     * <pre><code>GET /projects</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects</code></pre>
      *
      * @param filter the ProjectFilter instance holding the filter values for the query
      * @return a Stream of all visible projects across GitLab for the authenticated use
@@ -544,7 +594,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a list of visible projects owned by the given user.
      *
-     * <pre><code>GET /users/:user_id/projects</code></pre>
+     * <pre><code>GitLab Endpoint: GET /users/:user_id/projects</code></pre>
      *
      * @param userIdOrUsername the user ID, username of the user, or a User instance holding the user ID or username
      * @param filter the ProjectFilter instance holding the filter values for the query
@@ -558,7 +608,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a list of visible projects owned by the given user in the specified page range.
      *
-     * <pre><code>GET /users/:user_id/projects</code></pre>
+     * <pre><code>GitLab Endpoint: GET /users/:user_id/projects</code></pre>
      *
      * @param userIdOrUsername the user ID, username of the user, or a User instance holding the user ID or username
      * @param filter the ProjectFilter instance holding the filter values for the query
@@ -577,7 +627,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a Pager of visible projects owned by the given user.
      *
-     * <pre><code>GET /users/:user_id/projects</code></pre>
+     * <pre><code>GitLab Endpoint: GET /users/:user_id/projects</code></pre>
      *
      * @param userIdOrUsername the user ID, username of the user, or a User instance holding the user ID or username
      * @param filter the ProjectFilter instance holding the filter values for the query
@@ -594,7 +644,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a Stream of visible projects owned by the given user.
      *
-     * <pre><code>GET /users/:user_id/projects</code></pre>
+     * <pre><code>GitLab Endpoint: GET /users/:user_id/projects</code></pre>
      *
      * @param userIdOrUsername the user ID, username of the user, or a User instance holding the user ID or username
      * @param filter the ProjectFilter instance holding the filter values for the query
@@ -608,7 +658,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a specific project, which is owned by the authentication user.
      *
-     * <pre><code>GET /projects/:id</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
      * @return the specified project
@@ -622,7 +672,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get an Optional instance with the value for the specific project, which is owned by the authentication user.
      *
-     * <pre><code>GET /projects/:id</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
      * @return an Optional instance with the specified project as a value
@@ -638,7 +688,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a specific project, which is owned by the authentication user.
      *
-     * <pre><code>GET /projects/:id</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
      * @param includeStatistics include project statistics
@@ -654,7 +704,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get an Optional instance with the value for the specific project, which is owned by the authentication user.
      *
-     * <pre><code>GET /projects/:id</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
      * @param includeStatistics include project statistics
@@ -671,7 +721,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a specific project, which is owned by the authentication user.
      *
-     * <pre><code>GET /projects/:id</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id</code></pre>
      *
      * @param namespace the name of the project namespace or group
      * @param project the name of the project to get
@@ -702,7 +752,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get an Optional instance with the value for the specific project, which is owned by the authentication user.
      *
-     * <pre><code>GET /projects/:id</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id</code></pre>
      *
      * @param namespace the name of the project namespace or group
      * @param project the name of the project
@@ -719,7 +769,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a specific project, which is owned by the authentication user.
      *
-     * <pre><code>GET /projects/:id</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id</code></pre>
      *
      * @param namespace the name of the project namespace or group
      * @param project the name of the project to get
@@ -752,7 +802,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get an Optional instance with the value for the specific project, which is owned by the authentication user.
      *
-     * <pre><code>GET /projects/:id</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id</code></pre>
      *
      * @param namespace the name of the project namespace or group
      * @param project the name of the project
@@ -1167,7 +1217,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Removes project with all resources(issues, merge requests etc).
      *
-     * <pre><code>DELETE /projects/:id</code></pre>
+     * <pre><code>GitLab Endpoint: DELETE /projects/:id</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
      * @throws GitLabApiException if any exception occurs
@@ -1182,7 +1232,7 @@ public class ProjectApi extends AbstractApi implements Constants {
      * The forking operation for a project is asynchronous and is completed in a background job.
      * The request will return immediately.
      *
-     * <pre><code>POST /projects/:id/fork</code></pre>
+     * <pre><code>GitLab Endpoint: POST /projects/:id/fork</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
      * @param namespace path of the namespace that the project will be forked to
@@ -1201,7 +1251,7 @@ public class ProjectApi extends AbstractApi implements Constants {
      * The forking operation for a project is asynchronous and is completed in a background job.
      * The request will return immediately.
      *
-     * <pre><code>POST /projects/:id/fork</code></pre>
+     * <pre><code>GitLab Endpoint: POST /projects/:id/fork</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
      * @param namespaceId ID of the namespace that the project will be forked to
@@ -1218,7 +1268,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Create a forked from/to relation between existing projects.
      *
-     * <pre><code>POST /projects/:id/fork/:forkFromId</code></pre>
+     * <pre><code>GitLab Endpoint: POST /projects/:id/fork/:forkFromId</code></pre>
      *
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
@@ -1235,7 +1285,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Delete an existing forked from relationship.
      *
-     * <pre><code>DELETE /projects/:id/fork</code></pre>
+     * <pre><code>GitLab Endpoint: DELETE /projects/:id/fork</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
      * @throws GitLabApiException if any exception occurs
@@ -1248,7 +1298,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a list of project team members.
      *
-     * <pre><code>GET /projects/:id/members</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id/members</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
      * @return the members belonging to the specified project
@@ -1261,7 +1311,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a list of project team members in the specified page range.
      *
-     * <pre><code>GET /projects/:id/members</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id/members</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
      * @param page the page to get
@@ -1277,7 +1327,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a Pager of project team members.
      *
-     * <pre><code>GET /projects/:id/members</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id/members</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
      * @param itemsPerPage the number of Project instances that will be fetched per page
@@ -1291,7 +1341,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a Stream of project team members.
      *
-     * <pre><code>GET /projects/:id/members</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id/members</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
      * @return a Stream of the members belonging to the specified project
@@ -1307,7 +1357,7 @@ public class ProjectApi extends AbstractApi implements Constants {
      * times the same user (with different member attributes) when the user is
      * a member of the project/group and of one or more ancestor group.
      *
-     * <pre><code>GET /projects/:id/members/all</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id/members/all</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
      * @return the project members viewable by the authenticated user, including inherited members through ancestor groups
@@ -1323,7 +1373,7 @@ public class ProjectApi extends AbstractApi implements Constants {
      * times the same user (with different member attributes) when the user is
      * a member of the project/group and of one or more ancestor group.
      *
-     * <pre><code>GET /projects/:id/members</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id/members</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
      * @param page the page to get
@@ -1343,7 +1393,7 @@ public class ProjectApi extends AbstractApi implements Constants {
      * times the same user (with different member attributes) when the user is
      * a member of the project/group and of one or more ancestor group.
      *
-     * <pre><code>GET /projects/:id/members/all</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id/members/all</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
      * @param itemsPerPage the number of Project instances that will be fetched per page
@@ -1362,7 +1412,7 @@ public class ProjectApi extends AbstractApi implements Constants {
      * times the same user (with different member attributes) when the user is
      * a member of the project/group and of one or more ancestor group.
      *
-     * <pre><code>GET /projects/:id/members/all</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id/members/all</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
      * @return a Stream of the project members viewable by the authenticated user,
@@ -1376,7 +1426,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Gets a project team member.
      *
-     * <pre><code>GET /projects/:id/members/:user_id</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id/members/:user_id</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
      * @param userId the user ID of the member
@@ -1391,7 +1441,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Gets a project team member.
      *
-     * <pre><code>GET /projects/:id/members/:user_id</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id/members/:user_id</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
      * @param userId the user ID of the member
@@ -1410,7 +1460,7 @@ public class ProjectApi extends AbstractApi implements Constants {
      * with the same parameters. Adding team membership to a user that is already a member does not
      * affect the existing membership.
      *
-     * <pre><code>POST /projects/:id/members</code></pre>
+     * <pre><code>GitLab Endpoint: POST /projects/:id/members</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
      * @param userId the user ID of the member to add, required
@@ -1427,7 +1477,7 @@ public class ProjectApi extends AbstractApi implements Constants {
      * with the same parameters. Adding team membership to a user that is already a member does not
      * affect the existing membership.
      *
-     * <pre><code>POST /projects/:id/members</code></pre>
+     * <pre><code>GitLab Endpoint: POST /projects/:id/members</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
      * @param userId the user ID of the member to add, required
@@ -1444,7 +1494,7 @@ public class ProjectApi extends AbstractApi implements Constants {
      * with the same parameters. Adding team membership to a user that is already a member does not
      * affect the existing membership.
      *
-     * <pre><code>POST /projects/:id/members</code></pre>
+     * <pre><code>GitLab Endpoint: POST /projects/:id/members</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
      * @param userId the user ID of the member to add
@@ -1462,7 +1512,7 @@ public class ProjectApi extends AbstractApi implements Constants {
      * with the same parameters. Adding team membership to a user that is already a member does not
      * affect the existing membership.
      *
-     * <pre><code>POST /projects/:id/members</code></pre>
+     * <pre><code>GitLab Endpoint: POST /projects/:id/members</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
      * @param userId the user ID of the member to add
@@ -1483,7 +1533,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Updates a member of a project.
      *
-     * <pre><code>PUT /projects/:projectId/members/:userId</code></pre>
+     * <pre><code>GitLab Endpoint: PUT /projects/:projectId/members/:userId</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
      * @param userId the user ID of the member to update, required
@@ -1498,7 +1548,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Updates a member of a project.
      *
-     * <pre><code>PUT /projects/:projectId/members/:userId</code></pre>
+     * <pre><code>GitLab Endpoint: PUT /projects/:projectId/members/:userId</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
      * @param userId the user ID of the member to update, required
@@ -1513,7 +1563,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Updates a member of a project.
      *
-     * <pre><code>PUT /projects/:projectId/members/:userId</code></pre>
+     * <pre><code>GitLab Endpoint: PUT /projects/:projectId/members/:userId</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
      * @param userId the user ID of the member to update, required
@@ -1529,7 +1579,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Updates a member of a project.
      *
-     * <pre><code>PUT /projects/:projectId/members/:userId</code></pre>
+     * <pre><code>GitLab Endpoint: PUT /projects/:projectId/members/:userId</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @param userId the user ID of the member to update, required
@@ -1549,7 +1599,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Removes user from project team.
      *
-     * <pre><code>DELETE /projects/:id/members/:user_id</code></pre>
+     * <pre><code>GitLab Endpoint: DELETE /projects/:id/members/:user_id</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @param userId the user ID of the member to remove
@@ -1563,7 +1613,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a list of project users. This list includes all project members and all users assigned to project parent groups.
      *
-     * <pre><code>GET /projects/:id/users</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id/users</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @return the users belonging to the specified project and its parent groups
@@ -1576,7 +1626,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a Pager of project users. This Pager includes all project members and all users assigned to project parent groups.
      *
-     * <pre><code>GET /projects/:id/users</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id/users</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
      * @param itemsPerPage the number of Project instances that will be fetched per page
@@ -1590,7 +1640,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a Stream of project users. This Stream includes all project members and all users assigned to project parent groups.
      *
-     * <pre><code>GET /projects/:id/users</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id/users</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @return a Stream of the users belonging to the specified project and its parent groups
@@ -1604,7 +1654,7 @@ public class ProjectApi extends AbstractApi implements Constants {
      * Get a list of project users matching the specified search string. This list
      * includes all project members and all users assigned to project parent groups.
      *
-     * <pre><code>GET /projects/:id/users</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id/users</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @param search the string to match specific users
@@ -1619,7 +1669,7 @@ public class ProjectApi extends AbstractApi implements Constants {
      * Get a Pager of project users matching the specified search string. This Pager includes
      * all project members and all users assigned to project parent groups.
      *
-     * <pre><code>GET /projects/:id/users</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id/users</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
      * @param search the string to match specific users
@@ -1637,7 +1687,7 @@ public class ProjectApi extends AbstractApi implements Constants {
      * Get a Stream of project users matching the specified search string. This Stream
      * includes all project members and all users assigned to project parent groups.
      *
-     * <pre><code>GET /projects/:id/users</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id/users</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @param search the string to match specific users
@@ -1651,7 +1701,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get the project events for specific project. Sorted from newest to latest.
      *
-     * <pre><code>GET /projects/:id/events</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id/events</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @return the project events for the specified project
@@ -1664,7 +1714,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get the project events for specific project. Sorted from newest to latest in the specified page range.
      *
-     * <pre><code>GET /projects/:id/events</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id/events</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @param page the page to get
@@ -1680,7 +1730,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a Pager of project events for specific project. Sorted from newest to latest.
      *
-     * <pre><code>GET /projects/:id/events</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id/events</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @param itemsPerPage the number of Project instances that will be fetched per page
@@ -1694,7 +1744,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a Stream of the project events for specific project. Sorted from newest to latest.
      *
-     * <pre><code>GET /projects/:id/events</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id/events</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @return a Stream of the project events for the specified project
@@ -1707,7 +1757,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a list of the project hooks for the specified project.
      *
-     * <pre><code>GET /projects/:id/hooks</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id/hooks</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @return a list of project hooks for the specified project
@@ -1720,7 +1770,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get list of project hooks in the specified page range.
      *
-     * <pre><code>GET /projects/:id/hooks</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id/hooks</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @param page the page to get
@@ -1736,7 +1786,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get Pager of project hooks.
      *
-     * <pre><code>GET /projects/:id/hooks</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id/hooks</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @param itemsPerPage the number of Project instances that will be fetched per page
@@ -1750,7 +1800,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a Stream of the project hooks for the specified project.
      *
-     * <pre><code>GET /projects/:id/hooks</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id/hooks</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @return a Stream of project hooks for the specified project
@@ -1763,7 +1813,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a specific hook for project.
      *
-     * <pre><code>GET /projects/:id/hooks/:hook_id</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id/hooks/:hook_id</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @param hookId the ID of the hook to get
@@ -1778,7 +1828,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a specific hook for project as an Optional instance.
      *
-     * <pre><code>GET /projects/:id/hooks/:hook_id</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id/hooks/:hook_id</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @param hookId the ID of the hook to get
@@ -1795,7 +1845,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Adds a hook to project.
      *
-     * <pre><code>POST /projects/:id/hooks</code></pre>
+     * <pre><code>GitLab Endpoint: POST /projects/:id/hooks</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @param url the callback URL for the hook
@@ -1821,7 +1871,7 @@ public class ProjectApi extends AbstractApi implements Constants {
                 .withParam("job_events", enabledHooks.getJobEvents(), false)
                 .withParam("pipeline_events", enabledHooks.getPipelineEvents(), false)
                 .withParam("wiki_events", enabledHooks.getWikiPageEvents(), false)
-                .withParam("enable_ssl_verification", enabledHooks.getEnableSslVerification(), false)
+                .withParam("enable_ssl_verification", enableSslVerification, false)
                 .withParam("repository_update_events", enabledHooks.getRepositoryUpdateEvents(), false)
                 .withParam("token", secretToken, false);
         Response response = post(Response.Status.CREATED, formData, "projects", getProjectIdOrPath(projectIdOrPath), "hooks");
@@ -1831,7 +1881,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Adds a hook to project.
      *
-     * <pre><code>POST /projects/:id/hooks</code></pre>
+     * <pre><code>GitLab Endpoint: POST /projects/:id/hooks</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @param url the callback URL for the hook
@@ -1847,7 +1897,7 @@ public class ProjectApi extends AbstractApi implements Constants {
         GitLabApiForm formData = new GitLabApiForm()
                 .withParam("url", url)
                 .withParam("push_events", doPushEvents)
-                .withParam("issues_enabled", doIssuesEvents)
+                .withParam("issues_events", doIssuesEvents)
                 .withParam("merge_requests_events", doMergeRequestsEvents);
 
         Response response = post(Response.Status.CREATED, formData, "projects", getProjectIdOrPath(projectIdOrPath), "hooks");
@@ -1857,7 +1907,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Deletes a hook from the project.
      *
-     * <pre><code>DELETE /projects/:id/hooks/:hook_id</code></pre>
+     * <pre><code>GitLab Endpoint: DELETE /projects/:id/hooks/:hook_id</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @param hookId the project hook ID to delete
@@ -1871,7 +1921,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Deletes a hook from the project.
      *
-     * <pre><code>DELETE /projects/:id/hooks/:hook_id</code></pre>
+     * <pre><code>GitLab Endpoint: DELETE /projects/:id/hooks/:hook_id</code></pre>
      *
      * @param hook the ProjectHook instance to remove
      * @throws GitLabApiException if any exception occurs
@@ -1883,7 +1933,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Modifies a hook for project.
      *
-     * <pre><code>PUT /projects/:id/hooks/:hook_id</code></pre>
+     * <pre><code>GitLab Endpoint: PUT /projects/:id/hooks/:hook_id</code></pre>
      *
      * @param hook the ProjectHook instance that contains the project hook info to modify
      * @return the modified project hook
@@ -1911,7 +1961,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a list of the project's issues.
      *
-     * <pre><code>GET /projects/:id/issues</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id/issues</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @return a list of project's issues
@@ -1926,7 +1976,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a list of project's issues using the specified page and per page settings.
      *
-     * <pre><code>GET /projects/:id/issues</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id/issues</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @param page the page to get
@@ -1944,7 +1994,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a Pager of project's issues.
      *
-     * <pre><code>GET /projects/:id/issues</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id/issues</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @param itemsPerPage the number of issues per page
@@ -1960,7 +2010,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a Stream of the project's issues.
      *
-     * <pre><code>GET /projects/:id/issues</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id/issues</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @return a Stream of the project's issues
@@ -1975,7 +2025,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a single project issue.
      *
-     * <pre><code>GET /projects/:id/issues/:issue_iid</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id/issues/:issue_iid</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @param issueId the internal ID of a project's issue
@@ -1992,7 +2042,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Delete a project issue.
      *
-     * <pre><code>DELETE /projects/:id/issues/:issue_iid</code></pre>
+     * <pre><code>GitLab Endpoint: DELETE /projects/:id/issues/:issue_iid</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @param issueId the internal ID of a project's issue
@@ -2008,7 +2058,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a list of the project snippets.
      *
-     * <pre><code>GET /projects/:id/snippets</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id/snippets</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @return a list of the project's snippets
@@ -2021,7 +2071,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a list of project snippets.
      *
-     * <pre><code>GET /projects/:id/snippets</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id/snippets</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @param page the page to get
@@ -2037,7 +2087,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a Pager of project's snippets.
      *
-     * <pre><code>GET /projects/:id/snippets</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id/snippets</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @param itemsPerPage the number of snippets per page
@@ -2051,7 +2101,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a Stream of the project snippets.
      *
-     * <pre><code>GET /projects/:id/snippets</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id/snippets</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @return a Stream of the project's snippets
@@ -2064,7 +2114,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a single of project snippet.
      *
-     * <pre><code>GET /projects/:id/snippets/:snippet_id</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id/snippets/:snippet_id</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @param snippetId the ID of the project's snippet
@@ -2079,7 +2129,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a single of project snippet as an Optional instance.
      *
-     * <pre><code>GET /projects/:id/snippets/:snippet_id</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id/snippets/:snippet_id</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @param snippetId the ID of the project's snippet
@@ -2096,7 +2146,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Creates a new project snippet. The user must have permission to create new snippets.
      *
-     * <pre><code>POST /projects/:id/snippets</code></pre>
+     * <pre><code>GitLab Endpoint: POST /projects/:id/snippets</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @param title the title of a snippet, required
@@ -2124,7 +2174,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Updates an existing project snippet. The user must have permission to change an existing snippet.
      *
-     * <pre><code>PUT /projects/:id/snippets/:snippet_id</code></pre>
+     * <pre><code>GitLab Endpoint: PUT /projects/:id/snippets/:snippet_id</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @param snippetId the ID of a project's snippet, required
@@ -2154,7 +2204,7 @@ public class ProjectApi extends AbstractApi implements Constants {
      * Deletes an existing project snippet. This is an idempotent function and deleting a
      * non-existent snippet does not cause an error.
      *
-     * <pre><code>DELETE /projects/:id/snippets/:snippet_id</code></pre>
+     * <pre><code>GitLab Endpoint: DELETE /projects/:id/snippets/:snippet_id</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @param snippetId the ID of the project's snippet
@@ -2167,7 +2217,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get the raw project snippet as plain text.
      *
-     * <pre><code>GET /projects/:id/snippets/:snippet_id/raw</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id/snippets/:snippet_id/raw</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @param snippetId the ID of the project's snippet
@@ -2182,7 +2232,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get the raw project snippet plain text as an Optional instance.
      *
-     * <pre><code>GET /projects/:id/snippets/:snippet_id/raw</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id/snippets/:snippet_id/raw</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @param snippetId the ID of the project's snippet
@@ -2199,7 +2249,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Share a project with the specified group.
      *
-     * <pre><code>POST /projects/:id/share</code></pre>
+     * <pre><code>GitLab Endpoint: POST /projects/:id/share</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @param groupId the ID of the group to share with, required
@@ -2219,7 +2269,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Unshare the project from the group.
      *
-     * <pre><code>DELETE /projects/:id/share/:group_id</code></pre>
+     * <pre><code>GitLab Endpoint: DELETE /projects/:id/share/:group_id</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @param groupId the ID of the group to unshare, required
@@ -2233,7 +2283,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Archive a project
      *
-     * <pre><code>POST /projects/:id/archive</code></pre>
+     * <pre><code>GitLab Endpoint: POST /projects/:id/archive</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @return the archived GitLab Project
@@ -2248,7 +2298,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Unarchive a project
      *
-     * <pre><code>POST /projects/:id/unarchive</code></pre>
+     * <pre><code>GitLab Endpoint: POST /projects/:id/unarchive</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @return the unarchived GitLab Project
@@ -2263,7 +2313,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Uploads a file to the specified project to be used in an issue or merge request description, or a comment.
      *
-     * <pre><code>POST /projects/:id/uploads</code></pre>
+     * <pre><code>GitLab Endpoint: POST /projects/:id/uploads</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @param fileToUpload the File instance of the file to upload, required
@@ -2277,7 +2327,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Uploads a file to the specified project to be used in an issue or merge request description, or a comment.
      *
-     * <pre><code>POST /projects/:id/uploads</code></pre>
+     * <pre><code>GitLab Endpoint: POST /projects/:id/uploads</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @param fileToUpload the File instance of the file to upload, required
@@ -2293,7 +2343,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get the project's push rules.
      *
-     * <pre><code>GET /projects/:id/push_rule</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id/push_rule</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @return the push rules for the specified project
@@ -2307,7 +2357,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Adds a push rule to a specified project.
      *
-     * <pre><code>POST /projects/:id/push_rule</code></pre>
+     * <pre><code>GitLab Endpoint: POST /projects/:id/push_rule</code></pre>
      *
      * The following properties on the PushRules instance are utilized in the creation of the push rule:
      *
@@ -2345,7 +2395,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Updates a push rule for the specified project.
      *
-     * <pre><code>PUT /projects/:id/push_rule/:push_rule_id</code></pre>
+     * <pre><code>GitLab Endpoint: PUT /projects/:id/push_rule/:push_rule_id</code></pre>
      *
      * The following properties on the PushRules instance are utilized when updating the push rule:
      *
@@ -2384,7 +2434,7 @@ public class ProjectApi extends AbstractApi implements Constants {
      * Removes a push rule from a project. This is an idempotent method and can be
      * called multiple times. Either the push rule is available or not.
      *
-     * <pre><code>DELETE /projects/:id/push_rule</code></pre>
+     * <pre><code>GitLab Endpoint: DELETE /projects/:id/push_rule</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @throws GitLabApiException if any exception occurs
@@ -2396,7 +2446,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a list of projects that were forked from the specified project.
      *
-     * <pre><code>GET /projects/:id/forks</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id/forks</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @return a List of forked projects
@@ -2409,7 +2459,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a list of projects that were forked from the specified project and in the specified page range.
      *
-     * <pre><code>GET /projects/:id/forks</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id/forks</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @param page the page to get
@@ -2425,7 +2475,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a Pager of projects that were forked from the specified project.
      *
-     * <pre><code>GET /projects/:id/forks</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id/forks</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @param itemsPerPage the number of Project instances that will be fetched per page
@@ -2439,7 +2489,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a Stream of projects that were forked from the specified project.
      *
-     * <pre><code>GET /projects/:id/forks</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id/forks</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @return a Stream of forked projects
@@ -2452,7 +2502,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Star a project.
      *
-     * <pre><code>POST /projects/:id/star</code></pre>
+     * <pre><code>GitLab Endpoint: POST /projects/:id/star</code></pre>
      *
      * @param projectIdOrPath id, path of the project, or a Project instance holding the project ID or path
      * @return a Project instance with the new project info
@@ -2467,7 +2517,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Unstar a project.
      *
-     * <pre><code>POST /projects/:id/unstar</code></pre>
+     * <pre><code>GitLab Endpoint: POST /projects/:id/unstar</code></pre>
      *
      * @param projectIdOrPath id, path of the project, or a Project instance holding the project ID or path
      * @return a Project instance with the new project info
@@ -2482,7 +2532,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get languages used in a project with percentage value.
      *
-     * <pre><code>GET /projects/:id/languages</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id/languages</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @return a Map instance with the language as the key and the percentage as the value
@@ -2497,7 +2547,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Transfer a project to a new namespace.  This was added in GitLab 11.1
      *
-     * <pre><code>PUT /projects/:id/transfer.</code></pre>
+     * <pre><code>GitLab Endpoint: PUT /projects/:id/transfer.</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @param namespace the namespace to transfer the project to
@@ -2513,7 +2563,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Uploads and sets the project avatar for the specified project.
      *
-     * <pre><code>PUT /projects/:id/uploads</code></pre>
+     * <pre><code>GitLab Endpoint: PUT /projects/:id/uploads</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @param avatarFile the File instance of the avatar file to upload
@@ -2626,7 +2676,7 @@ public class ProjectApi extends AbstractApi implements Constants {
      * @throws GitLabApiException if any exception occurs during execution
      */
     public Variable createVariable(Object projectIdOrPath, String key, String value, Boolean isProtected) throws GitLabApiException {
-        return (createVariable(projectIdOrPath, key, value, isProtected, null));
+        return (createVariable(projectIdOrPath, key, value, isProtected, (String) null));
     }
 
     /**
@@ -2645,11 +2695,56 @@ public class ProjectApi extends AbstractApi implements Constants {
      * @throws GitLabApiException if any exception occurs during execution
      */
     public Variable createVariable(Object projectIdOrPath, String key, String value, Boolean isProtected, String environmentScope) throws GitLabApiException {
+        return createVariable(projectIdOrPath, key, value, null, isProtected, null, environmentScope);
+    }
+
+    /**
+     * Create a new project variable.
+     *
+     * <p>NOTE: Setting the environmentScope is only available on GitLab EE.</p>
+     *
+     * <pre><code>GitLab Endpoint: POST /projects/:id/variables</code></pre>
+     *
+     * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
+     * @param key the key of a variable; must have no more than 255 characters; only A-Z, a-z, 0-9, and _ are allowed, required
+     * @param value the value for the variable, required
+     * @param variableType the type of variable. Available types are: env_var (default) and file
+     * @param isProtected whether the variable is protected, optional
+     * @param isMasked whether the variable is masked, optional                   
+     * @return a Variable instance with the newly created variable
+     * @throws GitLabApiException if any exception occurs during execution
+     */
+    public Variable createVariable(Object projectIdOrPath, String key, String value, Variable.Type variableType,
+            Boolean isProtected, Boolean isMasked) throws GitLabApiException {
+        return createVariable(projectIdOrPath, key, value, variableType, isProtected, isMasked, null);
+    }
+
+    /**
+     * Create a new project variable.
+     *
+     * <p>NOTE: Setting the environmentScope is only available on GitLab EE.</p>
+     *
+     * <pre><code>GitLab Endpoint: POST /projects/:id/variables</code></pre>
+     *
+     * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
+     * @param key the key of a variable; must have no more than 255 characters; only A-Z, a-z, 0-9, and _ are allowed, required
+     * @param value the value for the variable, required
+     * @param variableType the type of variable. Available types are: env_var (default) and file
+     * @param isProtected whether the variable is protected, optional
+     * @param isMasked whether the variable is masked, optional                   
+     * @param environmentScope the environment_scope of the variable, optional
+     * @return a Variable instance with the newly created variable
+     * @throws GitLabApiException if any exception occurs during execution
+     */
+    public Variable createVariable(Object projectIdOrPath, String key, String value, Variable.Type variableType,
+            Boolean isProtected, Boolean isMasked, String environmentScope) throws GitLabApiException {
 
         GitLabApiForm formData = new GitLabApiForm()
                 .withParam("key", key, true)
                 .withParam("value", value, true)
+                .withParam("variable_type", variableType)
                 .withParam("protected", isProtected)
+                .withParam("masked", isMasked)
                 .withParam("environment_scope",  environmentScope);
         Response response = post(Response.Status.CREATED, formData, "projects", getProjectIdOrPath(projectIdOrPath), "variables");
         return (response.readEntity(Variable.class));
@@ -2668,7 +2763,7 @@ public class ProjectApi extends AbstractApi implements Constants {
      * @throws GitLabApiException if any exception occurs during execution
      */
     public Variable updateVariable(Object projectIdOrPath, String key, String value, Boolean isProtected) throws GitLabApiException {
-        return (updateVariable(projectIdOrPath, key, value, isProtected, null));
+        return (updateVariable(projectIdOrPath, key, value, null, isProtected, null, null));
     }
 
     /**
@@ -2687,11 +2782,56 @@ public class ProjectApi extends AbstractApi implements Constants {
      * @throws GitLabApiException if any exception occurs during execution
      */
     public Variable updateVariable(Object projectIdOrPath, String key, String value, Boolean isProtected, String environmentScope) throws GitLabApiException {
+        return updateVariable(projectIdOrPath, key, value, null, isProtected, null, environmentScope);
+    }
+
+    /**
+     * Update a project variable.
+     *
+     * <p>NOTE: Updating the environmentScope is only available on GitLab EE.</p>
+     *
+     * <pre><code>GitLab Endpoint: PUT /projects/:id/variables/:key</code></pre>
+     *
+     * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
+     * @param key the key of an existing variable, required
+     * @param value the value for the variable, required
+     * @param variableType the type of variable. Available types are: env_var (default) and file
+     * @param isProtected whether the variable is protected, optional
+     * @param masked whether the variable is masked, optional
+     * @return a Variable instance with the updated variable
+     * @throws GitLabApiException if any exception occurs during execution
+     */
+    public Variable updateVariable(Object projectIdOrPath, String key, String value, Variable.Type variableType,
+            Boolean isProtected, Boolean masked) throws GitLabApiException {
+        return updateVariable(projectIdOrPath, key, value, variableType, isProtected, masked, null);
+    }
+
+    /**
+     * Update a project variable.
+     *
+     * <p>NOTE: Updating the environmentScope is only available on GitLab EE.</p>
+     *
+     * <pre><code>GitLab Endpoint: PUT /projects/:id/variables/:key</code></pre>
+     *
+     * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
+     * @param key the key of an existing variable, required
+     * @param value the value for the variable, required
+     * @param variableType the type of variable. Available types are: env_var (default) and file
+     * @param isProtected whether the variable is protected, optional
+     * @param masked whether the variable is masked, optional
+     * @param environmentScope the environment_scope of the variable, optional.
+     * @return a Variable instance with the updated variable
+     * @throws GitLabApiException if any exception occurs during execution
+     */
+    public Variable updateVariable(Object projectIdOrPath, String key, String value, Variable.Type variableType,
+            Boolean isProtected, Boolean masked, String environmentScope) throws GitLabApiException {
 
         GitLabApiForm formData = new GitLabApiForm()
                 .withParam("value", value, true)
+                .withParam("variable_type", variableType)
                 .withParam("protected", isProtected)
-                .withParam("environment_scope",  environmentScope);
+                .withParam("masked", masked)
+                .withParam("environment_scope", environmentScope);
         Response response = putWithFormData(Response.Status.OK, formData, "projects", getProjectIdOrPath(projectIdOrPath), "variables", key);
         return (response.readEntity(Variable.class));
     }
@@ -2699,7 +2839,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Deletes a project variable.
      *
-     * <pre><code>DELETE /projects/:id/variables/:key</code></pre>
+     * <pre><code>GitLab Endpoint: DELETE /projects/:id/variables/:key</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
      * @param key the key of an existing variable, required
@@ -2712,7 +2852,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a List of the project access requests viewable by the authenticated user.
      *
-     * <pre><code>GET /projects/:id/access_requests</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id/access_requests</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
      * @return a List of project AccessRequest instances accessible by the authenticated user
@@ -2725,7 +2865,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a Pager of the project access requests viewable by the authenticated user.
      *
-     * <pre><code>GET /projects/:id/access_requests</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id/access_requests</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
      * @param itemsPerPage the number of AccessRequest instances that will be fetched per page
@@ -2739,7 +2879,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Get a Stream of the project access requests viewable by the authenticated user.
      *
-     * <pre><code>GET /projects/:id/access_requests</code></pre>
+     * <pre><code>GitLab Endpoint: GET /projects/:id/access_requests</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
      * @return a Stream of project AccessRequest instances accessible by the authenticated user
@@ -2752,7 +2892,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Requests access for the authenticated user to the specified project.
      *
-     * <pre><code>POST /projects/:id/access_requests</code></pre>
+     * <pre><code>GitLab Endpoint: POST /projects/:id/access_requests</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
      * @return the created AccessRequest instance
@@ -2766,7 +2906,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Approve access for the specified user to the specified project.
      *
-     * <pre><code>PUT /projects/:id/access_requests/:user_id/approve</code></pre>
+     * <pre><code>GitLab Endpoint: PUT /projects/:id/access_requests/:user_id/approve</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
      * @param userId the user ID to approve access for
@@ -2784,7 +2924,7 @@ public class ProjectApi extends AbstractApi implements Constants {
     /**
      * Deny access for the specified user to the specified project.
      *
-     * <pre><code>DELETE /projects/:id/access_requests/:user_id</code></pre>
+     * <pre><code>GitLab Endpoint: DELETE /projects/:id/access_requests/:user_id</code></pre>
      *
      * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
      * @param userId the user ID to deny access for
@@ -2793,5 +2933,134 @@ public class ProjectApi extends AbstractApi implements Constants {
     public void denyAccessRequest(Object projectIdOrPath, Integer userId) throws GitLabApiException {
         delete(Response.Status.NO_CONTENT, null,
                 "projects", getProjectIdOrPath(projectIdOrPath), "access_requests", userId);
+    }
+
+    /**
+     * Start the Housekeeping task for a project.
+     *
+     * <pre><code>GitLab Endpoint: POST /projects/:id/housekeeping</code></pre>
+     *
+     * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
+     * @throws GitLabApiException if any exception occurs
+     */
+    public void triggerHousekeeping(Object projectIdOrPath) throws GitLabApiException {
+        post(Response.Status.OK, (Form) null, "projects", getProjectIdOrPath(projectIdOrPath), "housekeeping");
+    }
+
+    /**
+     * Gets a list of a project’s badges and its group badges.
+     *
+     * <pre><code>GitLab Endpoint: GET /projects/:id/badges</code></pre>
+     *
+     * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
+     * @return a List of Badge instances for the specified project
+     * @throws GitLabApiException if any exception occurs
+     */
+    public List<Badge> getBadges(Object projectIdOrPath) throws GitLabApiException {
+	Response response = get(Response.Status.OK, null, "projects", getProjectIdOrPath(projectIdOrPath), "badges");
+	return (response.readEntity(new GenericType<List<Badge>>() {}));
+    }
+
+    /**
+     * Gets a badge of a project.
+     *
+     * <pre><code>GitLab Endpoint: GET /projects/:id/badges/:badge_id</code></pre>
+     *
+     * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
+     * @param badgeId the ID of the badge to get
+     * @return a Badge instance for the specified project/badge ID pair
+     * @throws GitLabApiException if any exception occurs
+     */
+    public Badge getBadge(Object projectIdOrPath, Integer badgeId) throws GitLabApiException {
+	Response response = get(Response.Status.OK, null, "projects", getProjectIdOrPath(projectIdOrPath), "badges", badgeId);
+	return (response.readEntity(Badge.class));
+    }
+
+    /**
+     * Get an Optional instance with the value for the specified badge.
+     *
+     * <pre><code>GitLab Endpoint: GET /projects/:id/badges/:badge_id</code></pre>
+     *
+     * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
+     * @param badgeId the ID of the badge to get
+     * @return an Optional instance with the specified badge as the value
+     */
+    public Optional<Badge> getOptionalBadge(Object projectIdOrPath, Integer badgeId) {
+	try {
+	    return (Optional.ofNullable(getBadge(projectIdOrPath, badgeId)));
+	} catch (GitLabApiException glae) {
+	    return (GitLabApi.createOptionalFromException(glae));
+	}
+    }
+
+    /**
+     * Add a badge to a project.
+     *
+     * <pre><code>GitLab Endpoint: POST /projects/:id/badges</code></pre>
+     *
+     * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
+     * @param linkUrl the URL of the badge link
+     * @param imageUrl the URL of the image link
+     * @return a Badge instance for the added badge
+     * @throws GitLabApiException if any exception occurs
+     */
+    public Badge addBadge(Object projectIdOrPath, String linkUrl, String imageUrl) throws GitLabApiException {
+	GitLabApiForm formData = new GitLabApiForm()
+		.withParam("link_url", linkUrl, true)
+		.withParam("image_url", imageUrl, true);
+	Response response = post(Response.Status.OK, formData, "projects", getProjectIdOrPath(projectIdOrPath), "badges");
+	return (response.readEntity(Badge.class));
+    }
+
+    /**
+     * Edit a badge of a project.
+     *
+     * <pre><code>GitLab Endpoint: PUT /projects/:id/badges</code></pre>
+     *
+     * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
+     * @param badgeId the ID of the badge to get
+     * @param linkUrl the URL of the badge link
+     * @param imageUrl the URL of the image link
+     * @return a Badge instance for the editted badge
+     * @throws GitLabApiException if any exception occurs
+     */
+    public Badge editBadge(Object projectIdOrPath, Integer badgeId, String linkUrl, String imageUrl) throws GitLabApiException {
+	GitLabApiForm formData = new GitLabApiForm()
+		.withParam("link_url", linkUrl, false)
+		.withParam("image_url", imageUrl, false);
+	Response response = putWithFormData(Response.Status.OK, formData, "projects", getProjectIdOrPath(projectIdOrPath), "badges", badgeId);
+	return (response.readEntity(Badge.class));
+    }
+
+    /**
+     * Remove a badge from a project.
+     *
+     * <pre><code>GitLab Endpoint: DELETE /projects/:id/badges/:badge_id</code></pre>
+     *
+     * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
+     * @param badgeId the ID of the badge to remove
+     * @throws GitLabApiException if any exception occurs
+     */
+    public void removeBadge(Object projectIdOrPath, Integer badgeId) throws GitLabApiException {
+	delete(Response.Status.NO_CONTENT, null, "projects", getProjectIdOrPath(projectIdOrPath), "badges", badgeId);
+    }
+
+    /**
+     * Returns how the link_url and image_url final URLs would be after resolving the placeholder interpolation.
+     *
+     * <pre><code>GitLab Endpoint: GET /projects/:id/badges/render</code></pre>
+     *
+     * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
+     * @param linkUrl the URL of the badge link
+     * @param imageUrl the URL of the image link
+     * @return a Badge instance for the rendered badge
+     * @throws GitLabApiException if any exception occurs
+     */
+    public Badge previewBadge(Object projectIdOrPath,  String linkUrl, String imageUrl) throws GitLabApiException {
+	GitLabApiForm formData = new GitLabApiForm()
+		.withParam("link_url", linkUrl, true)
+		.withParam("image_url", imageUrl, true);
+	Response response = get(Response.Status.OK, formData.asMap(), "projects", getProjectIdOrPath(projectIdOrPath), "badges", "render");
+	return (response.readEntity(Badge.class));
     }
 }

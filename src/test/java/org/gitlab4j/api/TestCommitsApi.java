@@ -15,11 +15,13 @@ import java.util.List;
 import java.util.Optional;
 
 import javax.ws.rs.core.Response;
+import org.gitlab4j.api.models.Branch;
 
 import org.gitlab4j.api.models.Comment;
 import org.gitlab4j.api.models.Commit;
 import org.gitlab4j.api.models.CommitAction;
 import org.gitlab4j.api.models.CommitAction.Action;
+import org.gitlab4j.api.models.CommitPayload;
 import org.gitlab4j.api.models.CommitRef;
 import org.gitlab4j.api.models.Diff;
 import org.gitlab4j.api.models.Project;
@@ -123,10 +125,6 @@ public class TestCommitsApi extends AbstractIntegrationTest {
         assertTrue(commits.isEmpty());
 
         commits = gitLabApi.getCommitsApi().getCommits(testProject.getId(), null, since, new Date());
-        assertNotNull(commits);
-        assertTrue(commits.size() > 0);
-
-        commits = gitLabApi.getCommitsApi().getCommits(testProject.getId(), null, since, new Date(), 1, 10);
         assertNotNull(commits);
         assertTrue(commits.size() > 0);
 
@@ -290,6 +288,50 @@ public class TestCommitsApi extends AbstractIntegrationTest {
     }
 
     @Test
+    public void testCreateCommitWithPayload() throws GitLabApiException {
+
+        String TEST_BRANCH = "create_commit_from_payload";
+
+        Optional<Branch> testBranch = gitLabApi.getRepositoryApi().getOptionalBranch(testProject, TEST_BRANCH);
+        if (!testBranch.isPresent()) {
+            gitLabApi.getRepositoryApi().createBranch(testProject, TEST_BRANCH, "master");
+        }
+
+        if (gitLabApi.getRepositoryFileApi().getOptionalFile(testProject, TEST_CREATE_COMMIT_FILEPATH, TEST_BRANCH).isPresent()) {
+            try {
+                gitLabApi.getRepositoryFileApi().deleteFile(testProject, TEST_CREATE_COMMIT_FILEPATH, TEST_BRANCH, "Deleted test file");
+            } catch (GitLabApiException ignore) {}
+        }
+
+        // Arrange
+        CommitPayload commitPayload = new CommitPayload()
+                .withBranch(TEST_BRANCH)
+                .withCommitMessage("Testing createCommit() create action")
+                .withAction(Action.CREATE, "This is the original data in the file", TEST_CREATE_COMMIT_FILEPATH);
+
+        // Act
+        Commit commit = gitLabApi.getCommitsApi().createCommit(testProject, commitPayload);
+
+        // Assert
+        assertNotNull(commit);
+
+        // Arrange
+        commitPayload = new CommitPayload()
+                .withBranch(TEST_BRANCH)
+                .withCommitMessage("Testing createCommit() delete action")
+                .withAction(Action.DELETE, TEST_CREATE_COMMIT_FILEPATH);
+
+        // Act
+        commit = gitLabApi.getCommitsApi().createCommit(testProject, commitPayload);
+
+        // Assert
+        assertNotNull(commit);
+
+        Optional<RepositoryFile> repoFile = gitLabApi.getRepositoryFileApi().getOptionalFile(testProject, TEST_CREATE_COMMIT_FILEPATH, TEST_BRANCH);
+        assertFalse(repoFile.isPresent());
+    }
+
+    @Test
     public void testRevertCommit() throws GitLabApiException {
 
         // Make sure the file to create does not exist.
@@ -320,5 +362,51 @@ public class TestCommitsApi extends AbstractIntegrationTest {
         assertNotEquals(commit.getId(), revertedCommit.getId());
         repoFile = gitLabApi.getRepositoryFileApi().getOptionalFile(testProject, filePath, "master");
         assertFalse(repoFile.isPresent());
+    }
+    
+    @Test
+    public void testCherryPickCommit() throws GitLabApiException {
+        
+        // Make sure the branch to cherry pick does not exist
+        if(gitLabApi.getRepositoryApi().getOptionalBranch(testProject, "cherry-pick-branch").isPresent()) {
+           gitLabApi.getRepositoryApi().deleteBranch(testProject, "cherry-pick-branch");
+        }
+        
+        // Make sure the file to create does not exist.
+        String filePath = TEST_CREATE_COMMIT_FILEPATH + ".test";
+        if (gitLabApi.getRepositoryFileApi().getOptionalFile(testProject, filePath, "master").isPresent()) {
+            gitLabApi.getRepositoryFileApi().deleteFile(testProject, filePath, "master", "Deleted test file");
+        }
+
+        // Act
+        Branch branch = gitLabApi.getRepositoryApi().createBranch(testProject, "cherry-pick-branch", "master");
+        
+        // Assert
+        assertNotNull(branch);
+        Optional<RepositoryFile> repoFileBranch = gitLabApi.getRepositoryFileApi().getOptionalFile(testProject, filePath, branch.getName());
+        assertFalse(repoFileBranch.isPresent());
+        
+        // Arrange
+        CommitAction commitAction = new CommitAction()
+                .withAction(Action.CREATE)
+                .withContent("This is the original data in the file")
+                .withFilePath(filePath);
+
+        // Act
+        Commit commit = gitLabApi.getCommitsApi().createCommit(
+                testProject, "master", "Testing createCommit() create action", null, null, null, commitAction);
+
+        // Assert
+        assertNotNull(commit);
+        Optional<RepositoryFile> repoFile = gitLabApi.getRepositoryFileApi().getOptionalFile(testProject, filePath, "master");
+        assertTrue(repoFile.isPresent());
+        
+        // Act
+        Commit cherryPickedCommit = gitLabApi.getCommitsApi().cherryPickCommit(testProject, commit.getId(), "cherry-pick-branch");
+        
+        // Assert
+        assertNotNull(cherryPickedCommit);
+        Optional<RepositoryFile> repoFileBranchCherryPicked = gitLabApi.getRepositoryFileApi().getOptionalFile(testProject, filePath, branch.getName());
+        assertTrue(repoFileBranchCherryPicked.isPresent());
     }
 }

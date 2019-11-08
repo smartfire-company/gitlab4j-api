@@ -36,6 +36,7 @@ import org.gitlab4j.api.models.AccessRequest;
 import org.gitlab4j.api.models.Application;
 import org.gitlab4j.api.models.ArtifactsFile;
 import org.gitlab4j.api.models.AwardEmoji;
+import org.gitlab4j.api.models.Badge;
 import org.gitlab4j.api.models.Board;
 import org.gitlab4j.api.models.Branch;
 import org.gitlab4j.api.models.Comment;
@@ -52,12 +53,15 @@ import org.gitlab4j.api.models.Epic;
 import org.gitlab4j.api.models.EpicIssue;
 import org.gitlab4j.api.models.Event;
 import org.gitlab4j.api.models.ExportStatus;
+import org.gitlab4j.api.models.ProjectFetches;
 import org.gitlab4j.api.models.FileUpload;
 import org.gitlab4j.api.models.Group;
 import org.gitlab4j.api.models.HealthCheckInfo;
 import org.gitlab4j.api.models.ImpersonationToken;
 import org.gitlab4j.api.models.ImportStatus;
 import org.gitlab4j.api.models.Issue;
+import org.gitlab4j.api.models.IssueLink;
+import org.gitlab4j.api.models.IssuesStatistics;
 import org.gitlab4j.api.models.Job;
 import org.gitlab4j.api.models.Key;
 import org.gitlab4j.api.models.Label;
@@ -75,15 +79,19 @@ import org.gitlab4j.api.models.Project;
 import org.gitlab4j.api.models.ProjectHook;
 import org.gitlab4j.api.models.ProjectUser;
 import org.gitlab4j.api.models.ProtectedBranch;
+import org.gitlab4j.api.models.ProtectedTag;
 import org.gitlab4j.api.models.PushRules;
 import org.gitlab4j.api.models.RegistryRepository;
+import org.gitlab4j.api.models.RepositoryFile;
 import org.gitlab4j.api.models.Runner;
 import org.gitlab4j.api.models.RunnerDetail;
+import org.gitlab4j.api.models.SearchBlob;
 import org.gitlab4j.api.models.Session;
 import org.gitlab4j.api.models.Snippet;
 import org.gitlab4j.api.models.SshKey;
 import org.gitlab4j.api.models.SystemHook;
 import org.gitlab4j.api.models.Tag;
+import org.gitlab4j.api.models.Todo;
 import org.gitlab4j.api.models.TreeItem;
 import org.gitlab4j.api.models.Trigger;
 import org.gitlab4j.api.models.User;
@@ -110,6 +118,12 @@ public class TestGitLabApiBeans {
     public void testAwardEmoji() throws Exception {
         AwardEmoji awardEmoji = unmarshalResource(AwardEmoji.class, "award-emoji.json");
         assertTrue(compareJson(awardEmoji, "award-emoji.json"));
+    }
+
+    @Test
+    public void testBadges() throws Exception {
+        List<Badge> badges = unmarshalResourceList(Badge.class, "badges.json");
+        assertTrue(compareJson(badges, "badges.json"));
     }
 
     @Test
@@ -207,6 +221,18 @@ public class TestGitLabApiBeans {
     }
 
     @Test
+    public void testIssuesStatistics() throws Exception {
+        IssuesStatistics statistics = unmarshalResource(IssuesStatistics.class, "issues-statistics.json");
+        assertTrue(compareJson(statistics, "issues-statistics.json"));
+    }
+
+    @Test
+    public void testProjectFetches() throws Exception {
+        ProjectFetches fetches = unmarshalResource(ProjectFetches.class, "project-fetches.json");
+        assertTrue(compareJson(fetches, "project-fetches.json"));
+    }
+
+    @Test
     public void testGroup() throws Exception {
         Group group = unmarshalResource(Group.class, "group.json");
         assertTrue(compareJson(group, "group.json"));
@@ -228,6 +254,18 @@ public class TestGitLabApiBeans {
     public void testIssue() throws Exception {
         Issue issue = unmarshalResource(Issue.class, "issue.json");
         assertTrue(compareJson(issue, "issue.json"));
+    }
+
+    @Test
+    public void testIssueLink() throws Exception {
+        IssueLink issueLink = unmarshalResource(IssueLink.class, "issue-link.json");
+        assertTrue(compareJson(issueLink, "issue-link.json"));
+    }
+
+    @Test
+    public void testLinkedIssues() throws Exception {
+        List<Issue> linkedIssues = unmarshalResourceList(Issue.class, "linked-issues.json");
+        assertTrue(compareJson(linkedIssues, "linked-issues.json"));
     }
 
     @Test
@@ -285,6 +323,12 @@ public class TestGitLabApiBeans {
     }
 
     @Test
+    public void testPipelineVariables() throws Exception {
+        List<Variable> variables = unmarshalResourceList(Variable.class, "pipeline-variables.json");
+        assertTrue(compareJson(variables, "pipeline-variables.json"));
+    }
+
+    @Test
     public void testProjectVariables() throws Exception {
         List<Variable> variables = unmarshalResourceList(Variable.class, "project-variables.json");
         assertTrue(compareJson(variables, "project-variables.json"));
@@ -333,9 +377,21 @@ public class TestGitLabApiBeans {
     }
 
     @Test
+    public void testProjectVariableDetails() throws Exception {
+        Variable variable = unmarshalResource(Variable.class, "project-variable-details.json");
+        assertTrue(compareJson(variable, "project-variable-details.json"));
+    }
+
+    @Test
     public void testProtectedBranch() throws Exception {
         ProtectedBranch protectedBranch = unmarshalResource(ProtectedBranch.class, "protected-branch.json");
         assertTrue(compareJson(protectedBranch, "protected-branch.json"));
+    }
+
+    @Test
+    public void testProtectedTags() throws Exception {
+        List<ProtectedTag> protectedTags = unmarshalResourceList(ProtectedTag.class, "protected-tags.json");
+        assertTrue(compareJson(protectedTags, "protected-tags.json"));
     }
 
     @Test
@@ -348,6 +404,12 @@ public class TestGitLabApiBeans {
     public void testRegistryRepositories() throws Exception {
         List<RegistryRepository> repos = unmarshalResourceList(RegistryRepository.class, "registry-repositories.json");
         assertTrue(compareJson(repos, "registry-repositories.json"));
+    }
+
+    @Test
+    public void testRepositoryFile() throws Exception {
+        RepositoryFile file = unmarshalResource(RepositoryFile.class, "repository-file.json");
+        assertTrue(compareJson(file, "repository-file.json"));
     }
 
     @Test
@@ -465,6 +527,12 @@ public class TestGitLabApiBeans {
     }
 
     @Test
+    public void testTodos() throws Exception {
+        List<Todo> todos = unmarshalResourceList(Todo.class, "todos.json");
+        assertTrue(compareJson(todos, "todos.json"));
+    }
+
+    @Test
     public void testTree() throws Exception {
         List<TreeItem> tree = unmarshalResourceList(TreeItem.class, "tree.json");
         assertTrue(compareJson(tree, "tree.json"));
@@ -498,5 +566,11 @@ public class TestGitLabApiBeans {
     public void testLabels() throws Exception {
         List<Label> labels = unmarshalResourceList(Label.class, "labels.json");
         assertTrue(compareJson(labels, "labels.json"));
+    }
+
+    @Test
+    public void testSearchBlobs() throws Exception {
+        List<SearchBlob> searchResults = unmarshalResourceList(SearchBlob.class, "wiki-blobs.json");
+        assertTrue(compareJson(searchResults, "wiki-blobs.json"));
     }
 }

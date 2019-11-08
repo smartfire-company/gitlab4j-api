@@ -5,15 +5,46 @@ import java.util.List;
 import java.util.Map;
 
 import org.gitlab4j.api.utils.JacksonJson;
+import org.gitlab4j.api.utils.JacksonJsonEnumHelper;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonValue;
 
 public class Variable {
 
+    /**
+     * Enum for the various Commit build status values.
+     */
+    public enum Type {
+
+        ENV_VAR, FILE;
+
+        private static JacksonJsonEnumHelper<Type> enumHelper = new JacksonJsonEnumHelper<>(Type.class);
+
+        @JsonCreator
+        public static Type forValue(String value) {
+            return enumHelper.forValue(value);
+        }
+
+        @JsonValue
+        public String toValue() {
+            return (enumHelper.toString(this));
+        }
+
+        @Override
+        public String toString() {
+            return (enumHelper.toString(this));
+        }
+    }
+
     private String key;
     private String value;
+    private Type variableType;
     @JsonProperty("protected")
     private Boolean isProtected;
+    @JsonProperty("masked")
+    private Boolean isMasked;
     private String environmentScope;
 
     public Variable() {
@@ -40,12 +71,28 @@ public class Variable {
         this.value = value;
     }
 
+    public Type getVariableType() {
+        return variableType;
+    }
+
+    public void setVariableType(Type variableType) {
+        this.variableType = variableType;
+    }
+
     public Boolean getProtected() {
         return isProtected;
     }
 
     public void setProtected(Boolean isProtected) {
         this.isProtected = isProtected;
+    }
+
+    public Boolean getMasked() {
+        return isMasked;
+    }
+
+    public void setMasked(Boolean masked) {
+        this.isMasked = masked;
     }
 
     public String getEnvironmentScope() {

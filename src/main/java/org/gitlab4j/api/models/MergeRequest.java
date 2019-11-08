@@ -10,12 +10,17 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 public class MergeRequest {
 
+    private Boolean allowCollaboration;
+    private Boolean allowMaintainerToPush;
     private Integer approvalsBeforeMerge;
     private Assignee assignee;
     private Author author;
     private List<Diff> changes;
+    private Date closedAt;
+    private Participant closedBy;
     private Date createdAt;
     private String description;
+    private Boolean discussionLocked;
     private Integer downvotes;
     private Boolean forceRemoveSourceBranch;
     private Integer id;
@@ -23,7 +28,10 @@ public class MergeRequest {
     private List<String> labels;
     private String mergeCommitSha;
     private String mergeStatus;
-    private Boolean mergeWhenBuildSucceeds;
+    private Date mergedAt;
+    private Participant mergedBy;
+    private Boolean mergeWhenPipelineSucceeds;
+    private String mergeError;
     private Milestone milestone;
     private Integer projectId;
     private String sha;
@@ -35,6 +43,8 @@ public class MergeRequest {
     private Boolean subscribed;
     private String targetBranch;
     private Integer targetProjectId;
+    private TaskCompletionStatus taskCompletionStatus;
+    private TimeStats timeStats;
     private String title;
     private Date updatedAt;
     private Integer upvotes;
@@ -45,11 +55,27 @@ public class MergeRequest {
 
     // The approval fields will only be available when listing approvals, approving  or unapproving a merge reuest.
     private Integer approvalsRequired;
-    private Integer approvalsMissing;
+    private Integer approvalsLeft;
 
     @JsonSerialize(using = JacksonJson.UserListSerializer.class)
     @JsonDeserialize(using = JacksonJson.UserListDeserializer.class)
     private List<User> approvedBy;
+
+    public Boolean getAllowCollaboration() {
+        return allowCollaboration;
+    }
+
+    public void setAllowCollaboration(Boolean allowCollaboration) {
+        this.allowCollaboration = allowCollaboration;
+    }
+
+    public Boolean getAllowMaintainerToPush() {
+        return allowMaintainerToPush;
+    }
+
+    public void setAllowMaintainerToPush(Boolean allowMaintainerToPush) {
+        this.allowMaintainerToPush = allowMaintainerToPush;
+    }
 
     public Integer getApprovalsBeforeMerge() {
         return approvalsBeforeMerge;
@@ -83,6 +109,22 @@ public class MergeRequest {
         this.changes = changes;
     }
 
+    public Date getClosedAt() {
+        return closedAt;
+    }
+
+    public void setClosedAt(Date closedAt) {
+        this.closedAt = closedAt;
+    }
+
+    public Participant getClosedBy() {
+        return closedBy;
+    }
+
+    public void setClosedBy(Participant closedBy) {
+        this.closedBy = closedBy;
+    }
+
     public Date getCreatedAt() {
         return createdAt;
     }
@@ -97,6 +139,14 @@ public class MergeRequest {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public Boolean getDiscussionLocked() {
+        return discussionLocked;
+    }
+
+    public void setDiscussionLocked(Boolean discussionLocked) {
+        this.discussionLocked = discussionLocked;
     }
 
     public Integer getDownvotes() {
@@ -155,12 +205,36 @@ public class MergeRequest {
         this.mergeStatus = mergeStatus;
     }
 
-    public Boolean getMergeWhenBuildSucceeds() {
-        return mergeWhenBuildSucceeds;
+    public Date getMergedAt() {
+        return mergedAt;
     }
 
-    public void setMergeWhenBuildSucceeds(Boolean mergeWhenBuildSucceeds) {
-        this.mergeWhenBuildSucceeds = mergeWhenBuildSucceeds;
+    public void setMergedAt(Date mergedAt) {
+        this.mergedAt = mergedAt;
+    }
+
+    public Participant getMergedBy() {
+        return mergedBy;
+    }
+
+    public void setMergedBy(Participant mergedBy) {
+        this.mergedBy = mergedBy;
+    }
+
+    public Boolean getMergeWhenPipelineSucceeds() {
+        return mergeWhenPipelineSucceeds;
+    }
+
+    public void setMergeWhenPipelineSucceeds(Boolean mergeWhenPipelineSucceeds) {
+        this.mergeWhenPipelineSucceeds = mergeWhenPipelineSucceeds;
+    }
+
+    public String getMergeError() {
+        return mergeError;
+    }
+
+    public void setMergeError(String mergeError) {
+        this.mergeError = mergeError;
     }
 
     public Milestone getMilestone() {
@@ -251,6 +325,22 @@ public class MergeRequest {
         this.targetProjectId = targetProjectId;
     }
 
+    public TaskCompletionStatus getTaskCompletionStatus() {
+        return taskCompletionStatus;
+    }
+
+    public void setTaskCompletionStatus(TaskCompletionStatus taskCompletionStatus) {
+        this.taskCompletionStatus = taskCompletionStatus;
+    }
+
+    public TimeStats getTimeStats() {
+        return timeStats;
+    }
+
+    public void setTimeStats(TimeStats timeStats) {
+        this.timeStats = timeStats;
+    }
+
     public String getTitle() {
         return title;
     }
@@ -322,14 +412,14 @@ public class MergeRequest {
     }
 
     /**
-     * Get the number of approvals missing for the merge request.
+     * Get the number of approvals left for the merge request.
      *
      * NOTE: This property will only be used when listing, approiving, or unapproving a merge request.
      *
-     * @return the number of approvals missing for the merge request
+     * @return the number of approvals left for the merge request
      */
-    public Integer getApprovalsMissing() {
-        return approvalsMissing;
+    public Integer getApprovalsLeft() {
+        return approvalsLeft;
     }
 
     /**
@@ -337,10 +427,10 @@ public class MergeRequest {
      *
      * NOTE: This property will only be used when listing, approiving, or unapproving a merge request.
      *
-     * @param approvalsMissing the number of approvals missing for the merge request
+     * @param approvalsLeft the number of approvals missing for the merge request
      */
-    public void setApprovalsMissing(Integer approvalsMissing) {
-        this.approvalsMissing = approvalsMissing;
+    public void setApprovalsLeft(Integer approvalsLeft) {
+        this.approvalsLeft = approvalsLeft;
     }
 
     /**

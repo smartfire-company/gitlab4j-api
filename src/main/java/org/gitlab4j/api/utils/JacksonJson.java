@@ -14,7 +14,6 @@ import java.util.TimeZone;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.ext.ContextResolver;
-import javax.ws.rs.ext.Provider;
 
 import org.gitlab4j.api.models.User;
 
@@ -43,7 +42,6 @@ import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 /**
  * Jackson JSON Configuration and utility class.
  */
-@Provider
 @Produces(MediaType.APPLICATION_JSON)
 public class JacksonJson extends JacksonJaxbJsonProvider implements ContextResolver<ObjectMapper> {
 
@@ -72,6 +70,8 @@ public class JacksonJson extends JacksonJaxbJsonProvider implements ContextResol
         module.addSerializer(Date.class, new JsonDateSerializer());
         module.addDeserializer(Date.class, new JsonDateDeserializer());
         objectMapper.registerModule(module);
+
+        setMapper(objectMapper);
     }
 
     @Override
@@ -255,6 +255,18 @@ public class JacksonJson extends JacksonJaxbJsonProvider implements ContextResol
         }
 
         return (results);
+    }
+
+    /**
+     * JsonSerializer for serializing dates s yyyy-mm-dd in UTC timezone.
+     */
+    public static class DateOnlySerializer extends JsonSerializer<Date> {
+
+        @Override
+        public void serialize(Date date, JsonGenerator gen, SerializerProvider provider) throws IOException, JsonProcessingException {
+            String dateString = ISO8601.dateOnly(date);
+            gen.writeString(dateString);
+        }
     }
 
     /**

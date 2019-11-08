@@ -5,7 +5,8 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 public abstract class AbstractSystemHookEvent implements SystemHookEvent {
 
     private String requestUrl;
-    private String requestQuesryString;
+    private String requestQueryString;
+    private String requestSecretToken;
 
     @Override
     public void setRequestUrl(String requestUrl) {
@@ -19,13 +20,24 @@ public abstract class AbstractSystemHookEvent implements SystemHookEvent {
     }
 
     @Override
-    public void setRequestQueryString(String requestQuesryString) {
-        this.requestQuesryString = requestQuesryString;
+    public void setRequestQueryString(String requestQueryString) {
+        this.requestQueryString = requestQueryString;
     }
 
     @Override
     @JsonIgnore
     public String getRequestQueryString() {
-        return (requestQuesryString);
+        return (requestQueryString);
+    }
+
+    @Override
+    public void setRequestSecretToken(String requestSecretToken) {
+        this.requestSecretToken = requestSecretToken;
+    }
+
+    @Override
+    @JsonIgnore
+    public String getRequestSecretToken() {
+        return (requestSecretToken);
     }
 }

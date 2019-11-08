@@ -1,9 +1,12 @@
 package org.gitlab4j.api;
 
 import org.gitlab4j.api.GitLabApi.ApiVersion;
+import org.gitlab4j.api.services.BugzillaService;
+import org.gitlab4j.api.services.CustomIssueTrackerService;
 import org.gitlab4j.api.services.ExternalWikiService;
 import org.gitlab4j.api.services.HipChatService;
 import org.gitlab4j.api.services.JiraService;
+import org.gitlab4j.api.services.MattermostService;
 import org.gitlab4j.api.services.SlackService;
 
 import javax.ws.rs.core.Form;
@@ -94,22 +97,7 @@ public class ServicesApi extends AbstractApi {
      * @throws GitLabApiException if any exception occurs
      */
     public HipChatService updateHipChatService(Object projectIdOrPath, HipChatService hipChat) throws GitLabApiException {
-        GitLabApiForm formData = new GitLabApiForm()
-                .withParam("push_events", hipChat.getPushEvents())
-                .withParam("issues_events", hipChat.getIssuesEvents())
-                .withParam("confidential_issues_events", hipChat.getConfidentialIssuesEvents())
-                .withParam("merge_requests_events", hipChat.getMergeRequestsEvents())
-                .withParam("tag_push_events", hipChat.getTagPushEvents())
-                .withParam("note_events", hipChat.getNoteEvents())
-                .withParam("confidential_note_events", hipChat.getConfidentialNoteEvents())
-                .withParam("pipeline_events", hipChat.getPipelineEvents())
-                .withParam("token", hipChat.getToken(), true)
-                .withParam("color", hipChat.getColor())
-                .withParam("notify", hipChat.getNotify())
-                .withParam("room", hipChat.getRoom())
-                .withParam("api_version", hipChat.getApiVersion())
-                .withParam("server", hipChat.getServer())
-                .withParam("notify_only_broken_pipelines", hipChat.getNotifyOnlyBrokenPipelines());
+        GitLabApiForm formData = hipChat.servicePropertiesForm();
         Response response = put(Response.Status.OK, formData.asMap(), "projects", getProjectIdOrPath(projectIdOrPath), "services", "hipchat");
         return (response.readEntity(HipChatService.class));
     }
@@ -211,30 +199,7 @@ public class ServicesApi extends AbstractApi {
      * @throws GitLabApiException if any exception occurs
      */
     public SlackService updateSlackService(Object projectIdOrPath, SlackService slackNotifications) throws GitLabApiException {
-        GitLabApiForm formData = new GitLabApiForm()
-                .withParam("webhook", slackNotifications.getWebhook(), true)
-                .withParam("username", slackNotifications.getUsername())
-                .withParam("channel", slackNotifications.getDefaultChannel())
-                .withParam("notify_only_broken_pipelines", slackNotifications.getNotifyOnlyBrokenPipelines())
-                .withParam("notify_only_default_branch", slackNotifications.getNotifyOnlyDefaultBranch())
-                .withParam("push_events", slackNotifications.getPushEvents())
-                .withParam("issues_events", slackNotifications.getIssuesEvents())
-                .withParam("confidential_issues_events", slackNotifications.getConfidentialIssuesEvents())
-                .withParam("merge_requests_events", slackNotifications.getMergeRequestsEvents())
-                .withParam("tag_push_events", slackNotifications.getTagPushEvents())
-                .withParam("note_events", slackNotifications.getNoteEvents())
-                .withParam("confidential_note_events", slackNotifications.getConfidentialNoteEvents())
-                .withParam("pipeline_events", slackNotifications.getPipelineEvents())
-                .withParam("wiki_page_events", slackNotifications.getWikiPageEvents())
-                .withParam("push_channel", slackNotifications.getPushChannel())
-                .withParam("issue_channel", slackNotifications.getIssueChannel())
-                .withParam("confidential_issue_channel", slackNotifications.getConfidentialIssueChannel())
-                .withParam("merge_request_channel", slackNotifications.getMergeRequestChannel())
-                .withParam("note_channel", slackNotifications.getNoteChannel())
-                .withParam("confidential_note_channel", slackNotifications.getConfidentialNoteChannel())
-                .withParam("tag_push_channel", slackNotifications.getTagPushChannel())
-                .withParam("pipeline_channel", slackNotifications.getPipelineChannel())
-                .withParam("wiki_page_channel", slackNotifications.getWikiPageChannel());
+        GitLabApiForm formData = slackNotifications.servicePropertiesForm();
         Response response = put(Response.Status.OK, formData.asMap(), "projects", getProjectIdOrPath(projectIdOrPath), "services", "slack");
         return (response.readEntity(SlackService.class));
     }
@@ -288,15 +253,7 @@ public class ServicesApi extends AbstractApi {
      * @throws GitLabApiException if any exception occurs
      */
     public JiraService updateJiraService(Object projectIdOrPath, JiraService jira) throws GitLabApiException {
-        GitLabApiForm formData = new GitLabApiForm()
-                .withParam("merge_requests_events", jira.getMergeRequestsEvents())
-                .withParam("commit_events", jira.getCommitEvents())
-                .withParam("url", jira.getUrl(), true)
-                .withParam("api_url", jira.getApiUrl())
-                .withParam("project_key", jira.getProjectKey())
-                .withParam("username", jira.getUsername(), true)
-                .withParam("password", jira.getPassword(), true)
-                .withParam("jira_issue_transition_id", jira.getJiraIssueTransitionId());
+        GitLabApiForm formData = jira.servicePropertiesForm();
         Response response = put(Response.Status.OK, formData.asMap(), "projects", getProjectIdOrPath(projectIdOrPath), "services", "jira");
         return (response.readEntity(JiraService.class));
     }
@@ -315,7 +272,7 @@ public class ServicesApi extends AbstractApi {
     }
 
     /**
-     * Get the JIRA service settings for a project.
+     * Get the ExternalWiki service settings for a project.
      *
      * <pre><code>GitLab Endpoint: GET /projects/:id/services/external-wiki</code></pre>
      *
@@ -343,8 +300,7 @@ public class ServicesApi extends AbstractApi {
      * @throws GitLabApiException if any exception occurs
      */
     public ExternalWikiService updateExternalWikiService(Object projectIdOrPath,  ExternalWikiService externalWiki) throws GitLabApiException {
-        GitLabApiForm formData = new GitLabApiForm()
-                .withParam("external_wiki_url", externalWiki.getExternalWikiUrl());
+        GitLabApiForm formData = externalWiki.servicePropertiesForm();
         Response response = put(Response.Status.OK, formData.asMap(), "projects", getProjectIdOrPath(projectIdOrPath), "services", "external-wiki");
         return (response.readEntity(ExternalWikiService.class));
     }
@@ -360,6 +316,181 @@ public class ServicesApi extends AbstractApi {
     public void deleteExternalWikiService(Object projectIdOrPath) throws GitLabApiException {
         Response.Status expectedStatus = (isApiVersion(ApiVersion.V3) ? Response.Status.OK : Response.Status.NO_CONTENT);
         delete(expectedStatus, null, "projects", getProjectIdOrPath(projectIdOrPath), "services", "external-wiki");
+
+    }
+
+    /**
+     * Get the Mattermost service settings for a project.
+     *
+     * <pre><code>GitLab Endpoint: GET /projects/:id/services/mattermost</code></pre>
+     *
+     * @param projectIdOrPath id, path of the project, or a Project instance holding the project ID or path
+     * @return a MattermostService instance holding the Mattermost service settings
+     * @throws GitLabApiException if any exception occurs
+     */
+    public MattermostService getMattermostService(Object projectIdOrPath) throws GitLabApiException {
+        Response response = this.get(Response.Status.OK, null, "projects", getProjectIdOrPath(projectIdOrPath), "services", "mattermost");
+        return (response.readEntity(MattermostService.class));
+    }
+
+    /**
+     * Updates the Mattermost service settings for a project.
+     *
+     * <pre><code>GitLab Endpoint: PUT /projects/:id/services/mattermost</code></pre>
+     *
+      * The following properties on the MattermostService instance are utilized in the update of the settings:
+     * <p>
+     * webhook (required) - https://hooks.slack.com/services/...
+     * username (optional) - username
+     * defaultChannel (optional) - Default channel to use if others are not configured
+     * notifyOnlyBrokenPipelines (optional) - Send notifications for broken pipelines
+     * notifyOnlyDefault_branch (optional) - Send notifications only for the default branch
+     * pushEvents (optional) - Enable notifications for push events
+     * issuesEvents (optional) - Enable notifications for issue events
+     * confidentialIssuesEvents (optional) - Enable notifications for confidential issue events
+     * mergeRequestsEvents (optional) - Enable notifications for merge request events
+     * tagPushEvents (optional) - Enable notifications for tag push events
+     * noteEvents (optional) - Enable notifications for note events
+     * confidentialNoteEvents (optional) - Enable notifications for confidential note events
+     * pipelineEvents (optional) - Enable notifications for pipeline events
+     * wikiPageEvents (optional) - Enable notifications for wiki page events
+     * pushChannel (optional) - The name of the channel to receive push events notifications
+     * issueChannel (optional) - The name of the channel to receive issues events notifications
+     * confidentialIssueChannel (optional) - The name of the channel to receive confidential issues events notifications
+     * mergeRequestChannel (optional) - The name of the channel to receive merge request events notifications
+     * noteChannel (optional) - The name of the channel to receive note events notifications
+     * confidentialNoteChannel (optional) - The name of the channel to receive confidential note events notifications
+     * tagPushChannel (optional) - The name of the channel to receive tag push events notifications
+     * pipelineChannel (optional) - The name of the channel to receive pipeline events notifications
+     * wikiPageChannel (optional) - The name of the channel to receive wiki page events notifications
+     *
+     * @param projectIdOrPath id, path of the project, or a Project instance holding the project ID or path
+     * @param mattermostNotifications the MattermostService instance holding the settings
+     * @return a MattermostService instance holding the newly updated settings
+     * @throws GitLabApiException if any exception occurs
+     */
+    public MattermostService updateMattermostService(Object projectIdOrPath,  MattermostService mattermostNotifications) throws GitLabApiException {
+        GitLabApiForm formData = mattermostNotifications.servicePropertiesForm();
+        Response response = put(Response.Status.OK, formData.asMap(), "projects", getProjectIdOrPath(projectIdOrPath), "services", "mattermost");
+        return (response.readEntity(MattermostService.class));
+    }
+
+    /**
+     * Deletes the Mattermost service for a project.
+     *
+     * <pre><code>GitLab Endpoint: DELETE /projects/:id/services/external-wiki</code></pre>
+     *
+     * @param projectIdOrPath id, path of the project, or a Project instance holding the project ID or path
+     * @throws GitLabApiException if any exception occurs
+     */
+    public void deleteMattermostService(Object projectIdOrPath) throws GitLabApiException {
+        Response.Status expectedStatus = (isApiVersion(ApiVersion.V3) ? Response.Status.OK : Response.Status.NO_CONTENT);
+        delete(expectedStatus, null, "projects", getProjectIdOrPath(projectIdOrPath), "services", "mattermost");
+    }
+
+    /**
+     * Get the Bugzilla service settings for a project.
+     *
+     * <pre><code>GitLab Endpoint: GET /projects/:id/services/bugzilla</code></pre>
+     *
+     * @param projectIdOrPath id, path of the project, or a Project instance holding the project ID or path
+     * @return a BugzillaService instance holding the External Wiki service settings
+     * @throws GitLabApiException if any exception occurs
+     */
+    public BugzillaService getBugzillaService(Object projectIdOrPath) throws GitLabApiException {
+        Response response = this.get(Response.Status.OK, null, "projects", getProjectIdOrPath(projectIdOrPath), "services", "bugzilla");
+        return (response.readEntity(BugzillaService.class));
+    }
+
+    /**
+     * Updates the Bugzilla service settings for a project.
+     *
+     * <pre><code>GitLab Endpoint: PUT /projects/:id/services/bugzilla</code></pre>
+     *
+     * The following properties on the BugzillaService instance are utilized in the update of the settings:
+     * <p>
+     * description (optional), description
+     * issuesUrl (required), issue url
+     * newIssueUrl (required), new Issue url
+     * projectUrl (required), project url
+     * pushEvents (optional) - Enable notifications for push events
+     * title (optional), the title for the custom issue tracker
+     * </p>
+     *
+     * @param projectIdOrPath id, path of the project, or a Project instance holding the project ID or path
+     * @param bugzillaService the BugzillaService instance holding the settings
+     * @return a BugzillaService instance holding the newly updated settings
+     * @throws GitLabApiException if any exception occurs
+     */
+    public BugzillaService updateBugzillaService(Object projectIdOrPath,  BugzillaService bugzillaService) throws GitLabApiException {
+        GitLabApiForm formData = bugzillaService.servicePropertiesForm();
+        Response response = put(Response.Status.OK, formData.asMap(), "projects", getProjectIdOrPath(projectIdOrPath), "services", "bugzilla");
+        return (response.readEntity(BugzillaService.class));
+    }
+
+    /**
+     * Deletes the Bugzilla service for a project.
+     *
+     * <pre><code>GitLab Endpoint: DELETE /projects/:id/services/bugzilla</code></pre>
+     *
+     * @param projectIdOrPath id, path of the project, or a Project instance holding the project ID or path
+     * @throws GitLabApiException if any exception occurs
+     */
+    public void deleteBugzillaService(Object projectIdOrPath) throws GitLabApiException {
+        delete(Response.Status.OK, null, "projects", getProjectIdOrPath(projectIdOrPath), "services", "bugzilla");
+
+    }
+
+    /**
+     * Get the Custom Issue Tracker service settings for a project.
+     *
+     * <pre><code>GitLab Endpoint: GET /projects/:id/services/custom_issue_tracker</code></pre>
+     *
+     * @param projectIdOrPath id, path of the project, or a Project instance holding the project ID or path
+     * @return a ExternalWikiService instance holding the External Wiki service settings
+     * @throws GitLabApiException if any exception occurs
+     */
+    public CustomIssueTrackerService getCustomIssueTrackerService(Object projectIdOrPath) throws GitLabApiException {
+        Response response = this.get(Response.Status.OK, null, "projects", getProjectIdOrPath(projectIdOrPath), "services", "custom-issue-tracker");
+        return (response.readEntity(CustomIssueTrackerService.class));
+    }
+
+    /**
+     * Updates the Custom Issue Tracker service settings for a project.
+     *
+     * <pre><code>GitLab Endpoint: PUT /projects/:id/services/custom_issue_tracker</code></pre>
+     *
+     * The following properties on the CustomIssueTrackerService instance are utilized in the update of the settings:
+     * <p>
+     * description (optional), description
+     * issuesUrl (required), issue url
+     * newIssueUrl (required), new Issue url
+     * projectUrl (required), project url
+     * pushEvents (optional) - Enable notifications for push events
+     * title (optional), the title for the custom issue tracker
+     * </p>
+     *
+     * @param projectIdOrPath id, path of the project, or a Project instance holding the project ID or path
+     * @param customIssueTracker the CustomIssueTrackerService instance holding the settings
+     * @return a CustomIssueTrackerService instance holding the newly updated settings
+     * @throws GitLabApiException if any exception occurs
+     */
+    public CustomIssueTrackerService updateCustomIssueTrackerService(Object projectIdOrPath,  CustomIssueTrackerService customIssueTracker) throws GitLabApiException {
+        GitLabApiForm formData = customIssueTracker.servicePropertiesForm();
+        Response response = put(Response.Status.OK, formData.asMap(), "projects", getProjectIdOrPath(projectIdOrPath), "services", "custom-issue-tracker");
+        return (response.readEntity(CustomIssueTrackerService.class));
+    }
+
+    /**
+     * Deletes the Custom Issue Tracker service for a project.
+     *
+     * <pre><code>GitLab Endpoint: DELETE /projects/:id/services/custom_issue_tracker</code></pre>
+     *
+     * @param projectIdOrPath id, path of the project, or a Project instance holding the project ID or path
+     * @throws GitLabApiException if any exception occurs
+     */
+    public void deleteCustomIssueTrackerService(Object projectIdOrPath) throws GitLabApiException {
+        delete(Response.Status.OK, null, "projects", getProjectIdOrPath(projectIdOrPath), "services", "custom-issue-tracker");
 
     }
 }

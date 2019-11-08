@@ -1,24 +1,46 @@
 package org.gitlab4j.api.services;
 
+import org.gitlab4j.api.GitLabApiForm;
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 public class SlackService extends NotificationService {
-
-    public static final String WEBHOOK_PROP = "webhook";
-    public static final String USERNAME_PROP = "username";
-    public static final String NOTIFY_ONLY_BROKEN_PIPELINES_PROP = "notify_only_broken_pipelines";
-    public static final String NOTIFY_ONLY_DEFAULT_BRANCH_PROP = "notify_only_default_branch";
-    public static final String PUSH_CHANNEL_PROP = "push_channel";
-    public static final String ISSUE_CHANNEL_PROP = "issue_channel";
-    public static final String CONFIDENTIAL_ISSUE_CHANNEL_PROP = "confidential_issue_channel";
-    public static final String MERGE_REQUEST_CHANNEL_PROP = "merge_request_channel";
-    public static final String NOTE_CHANNEL_PROP = "note_channel";
-    public static final String CONFIDENTIAL_NOTE_CHANNEL_PROP = "confidential_note_channel";
-    public static final String TAG_PUSH_CHANNEL_PROP = "tag_push_channel";
-    public static final String PIPELINE_CHANNEL_PROP = "pipeline_channel";
-    public static final String WIKI_PAGE_CHANNEL_PROP = "wiki_page_channel";
     
     private String defaultChannel;
+
+    /**
+     * Get the form data for this service based on it's properties.
+     *
+     * @return the form data for this service based on it's properties
+     */
+    @Override
+    public GitLabApiForm servicePropertiesForm() {
+        GitLabApiForm formData = new GitLabApiForm()
+            .withParam("webhook", getWebhook(), true)
+            .withParam("username", getUsername())
+            .withParam("channel", getDefaultChannel())
+            .withParam("notify_only_broken_pipelines", getNotifyOnlyBrokenPipelines())
+            .withParam("notify_only_default_branch", getNotifyOnlyDefaultBranch())
+            .withParam("push_events", getPushEvents())
+            .withParam("issues_events", getIssuesEvents())
+            .withParam("confidential_issues_events", getConfidentialIssuesEvents())
+            .withParam("merge_requests_events", getMergeRequestsEvents())
+            .withParam("tag_push_events", getTagPushEvents())
+            .withParam("note_events", getNoteEvents())
+            .withParam("confidential_note_events", getConfidentialNoteEvents())
+            .withParam("pipeline_events", getPipelineEvents())
+            .withParam("wiki_page_events", getWikiPageEvents())
+            .withParam("push_channel", getPushChannel())
+            .withParam("issue_channel", getIssueChannel())
+            .withParam("confidential_issue_channel", getConfidentialIssueChannel())
+            .withParam("merge_request_channel", getMergeRequestChannel())
+            .withParam("note_channel", getNoteChannel())
+            .withParam("confidential_note_channel", getConfidentialNoteChannel())
+            .withParam("tag_push_channel", getTagPushChannel())
+            .withParam("pipeline_channel", getPipelineChannel())
+            .withParam("wiki_page_channel", getWikiPageChannel());
+        return formData;
+    }
 
     public SlackService withPushEvents(Boolean pushEvents) {
         return withPushEvents(pushEvents, this);

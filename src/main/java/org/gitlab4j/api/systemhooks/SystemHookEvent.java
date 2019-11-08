@@ -38,8 +38,11 @@ public interface SystemHookEvent {
     void setRequestUrl(String requestUrl);
     @JsonIgnore String getRequestUrl();
 
-    void setRequestQueryString(String requestQuesryString);
+    void setRequestQueryString(String requestQueryString);
     @JsonIgnore String getRequestQueryString();
+
+    void setRequestSecretToken(String requestSecretToken);
+    @JsonIgnore String getRequestSecretToken();
 }
 
 // All of the following class definitions are needed to make the above work.
