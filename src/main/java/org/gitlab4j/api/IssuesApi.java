@@ -1,28 +1,6 @@
-/*
- * The MIT License (MIT)
- *
- * Copyright (c) 2017 Greg Messner <greg@messners.com>
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of
- * this software and associated documentation files (the "Software"), to deal in
- * the Software without restriction, including without limitation the rights to
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
- * the Software, and to permit persons to whom the Software is furnished to do so,
- * subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
- * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
- * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
- * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- */
-
 package org.gitlab4j.api;
 
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
@@ -36,7 +14,10 @@ import org.gitlab4j.api.models.Duration;
 import org.gitlab4j.api.models.Issue;
 import org.gitlab4j.api.models.IssueFilter;
 import org.gitlab4j.api.models.IssueLink;
+import org.gitlab4j.api.models.IssuesStatistics;
+import org.gitlab4j.api.models.IssuesStatisticsFilter;
 import org.gitlab4j.api.models.MergeRequest;
+import org.gitlab4j.api.models.Participant;
 import org.gitlab4j.api.models.TimeStats;
 import org.gitlab4j.api.utils.DurationUtils;
 
@@ -44,6 +25,7 @@ import org.gitlab4j.api.utils.DurationUtils;
  * This class provides an entry point to all the GitLab API Issue calls.
  * @see <a href="https://docs.gitlab.com/ce/api/issues.html">Issues API at GitLab</a>
  * @see <a href="https://docs.gitlab.com/ce/api/issue_links.html">Issue Links API at GitLab</a>
+ * @see <a href="https://docs.gitlab.com/ce/api/issues_statistics.html">Issues Statistics API at GitLab</a>
  */
 public class IssuesApi extends AbstractApi implements Constants {
 
@@ -284,6 +266,91 @@ public class IssuesApi extends AbstractApi implements Constants {
     }
 
     /**
+     * Get a list of a group’s issues.
+     *
+     * <pre><code>GitLab Endpoint: GET /groups/:id/issues</code></pre>
+     *
+     * @param groupIdOrPath the group in the form of an Integer(ID), String(path), or Group instance
+     * @return a List of issues for the specified group
+     * @throws GitLabApiException if any exception occurs
+     */
+    public List<Issue> getGroupIssues(Object groupIdOrPath) throws GitLabApiException {
+	return (getGroupIssues(groupIdOrPath, null, getDefaultPerPage()).all());
+    }
+
+    /**
+     * Get a Pager of groups's issues.
+     *
+     * <pre><code>GitLab Endpoint: GET /groups/:id/issues</code></pre>
+     *
+     * @param groupIdOrPath the group in the form of an Integer(ID), String(path), or Group instance
+     * @param itemsPerPage the number of Issue instances that will be fetched per page.
+     * @return the Pager of issues for the specified group
+     * @throws GitLabApiException if any exception occurs
+     */
+    public Pager<Issue> getGroupIssues(Object groupIdOrPath, int itemsPerPage) throws GitLabApiException {
+        return (getGroupIssues(groupIdOrPath, null, itemsPerPage));
+    }
+
+    /**
+     * Get a Stream of a group’s issues.
+     *
+     * <pre><code>GitLab Endpoint: GET /groups/:id/issues</code></pre>
+     *
+     * @param groupIdOrPath the group in the form of an Integer(ID), String(path), or Group instance
+     * @return a Stream of issues for the specified group and filter
+     * @throws GitLabApiException if any exception occurs
+     */
+    public Stream<Issue> getGroupIssuesStream(Object groupIdOrPath) throws GitLabApiException {
+	return (getGroupIssues(groupIdOrPath, null, getDefaultPerPage()).stream());
+    }
+
+    /**
+     * Get a list of a group’s issues.
+     *
+     * <pre><code>GitLab Endpoint: GET /groups/:id/issues</code></pre>
+     *
+     * @param groupIdOrPath the group in the form of an Integer(ID), String(path), or Group instance
+     * @param filter {@link IssueFilter} a IssueFilter instance with the filter settings.
+     * @return a List of issues for the specified group and filter
+     * @throws GitLabApiException if any exception occurs
+     */
+    public List<Issue> getGroupIssues(Object groupIdOrPath, IssueFilter filter) throws GitLabApiException {
+	return (getGroupIssues(groupIdOrPath, filter, getDefaultPerPage()).all());
+    }
+
+    /**
+     * Get a list of groups's issues.
+     *
+     * <pre><code>GitLab Endpoint: GET /groups/:id/issues</code></pre>
+     *
+     * @param groupIdOrPath the group in the form of an Integer(ID), String(path), or Group instance
+     * @param filter {@link IssueFilter} a IssueFilter instance with the filter settings.
+     * @param itemsPerPage the number of Issue instances that will be fetched per page.
+     * @return the Pager of issues for the specified group and filter
+     * @throws GitLabApiException if any exception occurs
+     */
+    public Pager<Issue> getGroupIssues(Object groupIdOrPath, IssueFilter filter, int itemsPerPage) throws GitLabApiException {
+        GitLabApiForm formData = (filter != null ? filter.getQueryParams() : new GitLabApiForm());
+        return (new Pager<Issue>(this, Issue.class, itemsPerPage, formData.asMap(),
+                "groups", getGroupIdOrPath(groupIdOrPath), "issues"));
+    }
+
+    /**
+     * Get a Stream of a group’s issues.
+     *
+     * <pre><code>GitLab Endpoint: GET /groups/:id/issues</code></pre>
+     *
+     * @param groupIdOrPath the group in the form of an Integer(ID), String(path), or Group instance
+     * @param filter {@link IssueFilter} a IssueFilter instance with the filter settings.
+     * @return a Stream of issues for the specified group and filter
+     * @throws GitLabApiException if any exception occurs
+     */
+    public Stream<Issue> getGroupIssuesStream(Object groupIdOrPath, IssueFilter filter) throws GitLabApiException {
+	return (getGroupIssues(groupIdOrPath, filter, getDefaultPerPage()).stream());
+    }
+
+    /**
      * Get a single project issue.
      *
      * <pre><code>GitLab Endpoint: GET /projects/:id/issues/:issue_iid</code></pre>
@@ -429,6 +496,28 @@ public class IssuesApi extends AbstractApi implements Constants {
                 .withParam("due_date", dueDate);
         Response response = put(Response.Status.OK, formData.asMap(), "projects", getProjectIdOrPath(projectIdOrPath), "issues", issueIid);
         return (response.readEntity(Issue.class));        
+    }
+
+    /**
+     * Updates an existing project issue. This call can also be used to mark an issue as closed.
+     *
+     * <pre><code>GitLab Endpoint: PUT /projects/:id/issues/:issue_iid</code></pre>
+     *
+     * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
+     * @param issueIid the issue IID to update, required
+     * @param assigneeId the ID of the user to assign issue to, required
+     * @return an instance of the updated Issue
+     * @throws GitLabApiException if any exception occurs
+     */
+    public Issue assignIssue(Object projectIdOrPath, Integer issueIid, Integer assigneeId) throws GitLabApiException {
+
+        if (issueIid == null) {
+            throw new RuntimeException("issue IID cannot be null");
+        }
+
+        GitLabApiForm formData = new GitLabApiForm().withParam("assignee_ids", Collections.singletonList(assigneeId));
+        Response response = put(Response.Status.OK, formData.asMap(), "projects", getProjectIdOrPath(projectIdOrPath), "issues", issueIid);
+        return (response.readEntity(Issue.class));
     }
 
     /**
@@ -798,5 +887,115 @@ public class IssuesApi extends AbstractApi implements Constants {
         Response response = delete(Response.Status.OK, null,
                 "projects", getProjectIdOrPath(projectIdOrPath), "issues", issueIid, "links", issueLinkId);
         return (response.readEntity(IssueLink.class));
+    }
+
+    /**
+     * Get list of participants for an issue.
+     *
+     * <pre><code>GitLab Endpoint: GET /projects/:id/issues/:issue_iid/participants</code></pre>
+     *
+     * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
+     * @param issueIid the IID of the issue to get the participants for
+     * @return a List containing all participants for the specified issue
+     * @throws GitLabApiException if any exception occurs
+     */
+    public List<Participant> getParticipants(Object projectIdOrPath, Integer issueIid) throws GitLabApiException {
+        return (getParticipants(projectIdOrPath, issueIid, getDefaultPerPage()).all());
+    }
+
+    /**
+     * Get list of participants for an issue and in the specified page range.
+     *
+     * <pre><code>GitLab Endpoint: GET /projects/:id/issues/:issue_iid/participants</code></pre>
+     *
+     * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
+     * @param issueIid the IID of the issue to get the participants for
+     * @param page the page to get
+     * @param perPage the number of projects per page
+     * @return a List containing all participants for the specified issue
+     * @throws GitLabApiException if any exception occurs
+     */
+    public List<Participant> getParticipants(Object projectIdOrPath, Integer issueIid, int page, int perPage) throws GitLabApiException {
+        Response response = get(Response.Status.OK, getPageQueryParams(page, perPage),
+                    "projects", getProjectIdOrPath(projectIdOrPath), "issues", issueIid, "participants");
+        return (response.readEntity(new GenericType<List<Participant>>() { }));
+    }
+
+    /**
+     * Get a Pager of the participants for an issue.
+     *
+     * <pre><code>GitLab Endpoint: GET /projects/:id/issues/:issue_iid/participants</code></pre>
+     *
+     * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
+     * @param issueIid the IID of the issue to get the participants for
+     * @param itemsPerPage the number of Participant instances that will be fetched per page
+     * @return a Pager containing all participants for the specified issue
+     * @throws GitLabApiException if any exception occurs
+     */
+    public Pager<Participant> getParticipants(Object projectIdOrPath, Integer issueIid, int itemsPerPage) throws GitLabApiException {
+        return new Pager<Participant>(this, Participant.class, itemsPerPage, null,
+                "projects", getProjectIdOrPath(projectIdOrPath), "issues", issueIid, "participants");
+    }
+
+    /**
+     * Get Stream of participants for an issue.
+     *
+     * <pre><code>GitLab Endpoint: GET /projects/:id/issues/:issue_iid/participants</code></pre>
+     *
+     * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
+     * @param issueIid the IID of the issue to get the participants for
+     * @return a Stream containing all participants for the specified issue
+     * @throws GitLabApiException if any exception occurs
+     */
+    public Stream<Participant> getParticipantsStream(Object projectIdOrPath, Integer issueIid) throws GitLabApiException {
+        return (getParticipants(projectIdOrPath, issueIid, getDefaultPerPage()).stream());
+    }
+
+    /**
+     * Gets issues count statistics on all issues the authenticated user has access to. By default it returns
+     * only issues created by the current user. To get all issues, use parameter scope=all.
+     *
+     * <pre><code>GitLab Endpoint: GET /issues_statistics</code></pre>
+     *
+     * @param filter {@link IssuesStatisticsFilter} a IssuesStatisticsFilter instance with the filter settings.
+     * @return an IssuesStatistics instance with the statistics for the matched issues.
+     * @throws GitLabApiException if any exception occurs
+     */
+    public IssuesStatistics getIssuesStatistics(IssuesStatisticsFilter filter) throws GitLabApiException {
+        GitLabApiForm formData = filter.getQueryParams();
+        Response response = get(Response.Status.OK, formData.asMap(), "issues_statistics");
+        return (response.readEntity(IssuesStatistics.class));
+    }
+
+    /**
+     * Gets issues count statistics for given group.
+     *
+     * <pre><code>GitLab Endpoint: GET /groups/:groupId/issues_statistics</code></pre>
+     *
+     * @param groupIdOrPath the group ID, path of the group, or a Group instance holding the group ID or path, required
+     * @param filter {@link IssuesStatisticsFilter} a IssuesStatisticsFilter instance with the filter settings
+     * @return an IssuesStatistics instance with the statistics for the matched issues
+     * @throws GitLabApiException if any exception occurs
+     */
+    public IssuesStatistics getGroupIssuesStatistics(Object groupIdOrPath, IssuesStatisticsFilter filter) throws GitLabApiException {
+        GitLabApiForm formData = filter.getQueryParams();
+        Response response = get(Response.Status.OK, formData.asMap(), "groups", this.getGroupIdOrPath(groupIdOrPath), "issues_statistics");
+        return (response.readEntity(IssuesStatistics.class));
+    }
+
+    /**
+     * Gets issues count statistics for given group.
+     *
+     * <pre><code>GitLab Endpoint: GET /projects/:projectId/issues_statistics</code></pre>
+     *
+     * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
+     * @param filter {@link IssuesStatisticsFilter} a IssuesStatisticsFilter instance with the filter settings.
+     * @return an IssuesStatistics instance with the statistics for the matched issues
+     * @throws GitLabApiException if any exception occurs
+     */
+    public IssuesStatistics geProjectIssuesStatistics(Object projectIdOrPath, IssuesStatisticsFilter filter) throws GitLabApiException {
+        GitLabApiForm formData = filter.getQueryParams();
+        Response response = get(Response.Status.OK, formData.asMap(), "projects", this.getProjectIdOrPath(projectIdOrPath), "issues_statistics");
+        return (response.readEntity(IssuesStatistics.class));
     }
 }

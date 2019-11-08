@@ -40,12 +40,14 @@ import javax.ws.rs.core.Response;
 import org.gitlab4j.api.GitLabApi.ApiVersion;
 import org.gitlab4j.api.models.AccessLevel;
 import org.gitlab4j.api.models.AccessRequest;
+import org.gitlab4j.api.models.Badge;
 import org.gitlab4j.api.models.Event;
 import org.gitlab4j.api.models.FileUpload;
 import org.gitlab4j.api.models.Issue;
 import org.gitlab4j.api.models.Member;
 import org.gitlab4j.api.models.Namespace;
 import org.gitlab4j.api.models.Project;
+import org.gitlab4j.api.models.ProjectFetches;
 import org.gitlab4j.api.models.ProjectFilter;
 import org.gitlab4j.api.models.ProjectHook;
 import org.gitlab4j.api.models.ProjectUser;
@@ -56,14 +58,51 @@ import org.gitlab4j.api.models.Visibility;
 
 /**
  * This class provides an entry point to all the GitLab API project calls.
+ * 
  * @see <a href="https://docs.gitlab.com/ce/api/projects.html">Projects API at GitLab</a>
- * @see <a href="https://docs.gitlab.com/ee/api/members.html">Group and project members API at GitLab</a>
- * @see <a href="https://docs.gitlab.com/ee/api/access_requests.html#group-and-project-access-requests-api">Group and project access requests API</a>
+ * @see <a href="https://docs.gitlab.com/ce/api/project_statistics.html">Project statistics API</a>
+ * @see <a href="https://docs.gitlab.com/ce/api/members.html">Group and project members API at GitLab</a>
+ * @see <a href="https://docs.gitlab.com/ce/api/access_requests.html#group-and-project-access-requests-api">Group and project access requests API</a>
+ * @see <a href="https://docs.gitlab.com/ee/api/project_badges.html">Project badges API</a>
  */
 public class ProjectApi extends AbstractApi implements Constants {
 
     public ProjectApi(GitLabApi gitLabApi) {
         super(gitLabApi);
+    }
+
+    /**
+     * Get the project fetch statistics for the last 30 days. Retrieving the statistics requires
+     * write access to the repository. Currently only HTTP fetches statistics are returned.
+     * Fetches statistics includes both clones and pulls count and are HTTP only,
+     * SSH fetches are not included.
+     *
+     * <pre><code>GitLab Endpoint: GET /project/:id/statistics</code></pre>
+     *
+     * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
+     * @return a ProjectFetches instance with the project fetch statistics for the last 30 days
+     * @throws GitLabApiException if any exception occurs during execution
+     */
+    public ProjectFetches getProjectStatistics(Object projectIdOrPath) throws GitLabApiException {
+        Response response = get(Response.Status.OK, null, "projects", getProjectIdOrPath(projectIdOrPath), "statistics");
+        return (response.readEntity(ProjectFetches.class));
+    }
+
+    /**
+     * Get an Optional instance with the value for the project fetch statistics for the last 30 days.
+     *
+     * <pre><code>GitLab Endpoint: GET /project/:id/statistics</code></pre>
+     *
+     * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance, required
+     * @return an Optional instance with the value for the project fetch statistics for the last 30 day
+     * @throws GitLabApiException if any exception occurs during execution
+     */
+    public Optional<ProjectFetches> getOptionalProjectStatistics(Object projectIdOrPath) throws GitLabApiException {
+        try {
+            return (Optional.ofNullable(getProjectStatistics(projectIdOrPath)));
+        } catch (GitLabApiException glae) {
+            return (GitLabApi.createOptionalFromException(glae));
+        }
     }
 
     /**
@@ -2894,5 +2933,134 @@ public class ProjectApi extends AbstractApi implements Constants {
     public void denyAccessRequest(Object projectIdOrPath, Integer userId) throws GitLabApiException {
         delete(Response.Status.NO_CONTENT, null,
                 "projects", getProjectIdOrPath(projectIdOrPath), "access_requests", userId);
+    }
+
+    /**
+     * Start the Housekeeping task for a project.
+     *
+     * <pre><code>GitLab Endpoint: POST /projects/:id/housekeeping</code></pre>
+     *
+     * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
+     * @throws GitLabApiException if any exception occurs
+     */
+    public void triggerHousekeeping(Object projectIdOrPath) throws GitLabApiException {
+        post(Response.Status.OK, (Form) null, "projects", getProjectIdOrPath(projectIdOrPath), "housekeeping");
+    }
+
+    /**
+     * Gets a list of a project’s badges and its group badges.
+     *
+     * <pre><code>GitLab Endpoint: GET /projects/:id/badges</code></pre>
+     *
+     * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
+     * @return a List of Badge instances for the specified project
+     * @throws GitLabApiException if any exception occurs
+     */
+    public List<Badge> getBadges(Object projectIdOrPath) throws GitLabApiException {
+	Response response = get(Response.Status.OK, null, "projects", getProjectIdOrPath(projectIdOrPath), "badges");
+	return (response.readEntity(new GenericType<List<Badge>>() {}));
+    }
+
+    /**
+     * Gets a badge of a project.
+     *
+     * <pre><code>GitLab Endpoint: GET /projects/:id/badges/:badge_id</code></pre>
+     *
+     * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
+     * @param badgeId the ID of the badge to get
+     * @return a Badge instance for the specified project/badge ID pair
+     * @throws GitLabApiException if any exception occurs
+     */
+    public Badge getBadge(Object projectIdOrPath, Integer badgeId) throws GitLabApiException {
+	Response response = get(Response.Status.OK, null, "projects", getProjectIdOrPath(projectIdOrPath), "badges", badgeId);
+	return (response.readEntity(Badge.class));
+    }
+
+    /**
+     * Get an Optional instance with the value for the specified badge.
+     *
+     * <pre><code>GitLab Endpoint: GET /projects/:id/badges/:badge_id</code></pre>
+     *
+     * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
+     * @param badgeId the ID of the badge to get
+     * @return an Optional instance with the specified badge as the value
+     */
+    public Optional<Badge> getOptionalBadge(Object projectIdOrPath, Integer badgeId) {
+	try {
+	    return (Optional.ofNullable(getBadge(projectIdOrPath, badgeId)));
+	} catch (GitLabApiException glae) {
+	    return (GitLabApi.createOptionalFromException(glae));
+	}
+    }
+
+    /**
+     * Add a badge to a project.
+     *
+     * <pre><code>GitLab Endpoint: POST /projects/:id/badges</code></pre>
+     *
+     * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
+     * @param linkUrl the URL of the badge link
+     * @param imageUrl the URL of the image link
+     * @return a Badge instance for the added badge
+     * @throws GitLabApiException if any exception occurs
+     */
+    public Badge addBadge(Object projectIdOrPath, String linkUrl, String imageUrl) throws GitLabApiException {
+	GitLabApiForm formData = new GitLabApiForm()
+		.withParam("link_url", linkUrl, true)
+		.withParam("image_url", imageUrl, true);
+	Response response = post(Response.Status.OK, formData, "projects", getProjectIdOrPath(projectIdOrPath), "badges");
+	return (response.readEntity(Badge.class));
+    }
+
+    /**
+     * Edit a badge of a project.
+     *
+     * <pre><code>GitLab Endpoint: PUT /projects/:id/badges</code></pre>
+     *
+     * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
+     * @param badgeId the ID of the badge to get
+     * @param linkUrl the URL of the badge link
+     * @param imageUrl the URL of the image link
+     * @return a Badge instance for the editted badge
+     * @throws GitLabApiException if any exception occurs
+     */
+    public Badge editBadge(Object projectIdOrPath, Integer badgeId, String linkUrl, String imageUrl) throws GitLabApiException {
+	GitLabApiForm formData = new GitLabApiForm()
+		.withParam("link_url", linkUrl, false)
+		.withParam("image_url", imageUrl, false);
+	Response response = putWithFormData(Response.Status.OK, formData, "projects", getProjectIdOrPath(projectIdOrPath), "badges", badgeId);
+	return (response.readEntity(Badge.class));
+    }
+
+    /**
+     * Remove a badge from a project.
+     *
+     * <pre><code>GitLab Endpoint: DELETE /projects/:id/badges/:badge_id</code></pre>
+     *
+     * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
+     * @param badgeId the ID of the badge to remove
+     * @throws GitLabApiException if any exception occurs
+     */
+    public void removeBadge(Object projectIdOrPath, Integer badgeId) throws GitLabApiException {
+	delete(Response.Status.NO_CONTENT, null, "projects", getProjectIdOrPath(projectIdOrPath), "badges", badgeId);
+    }
+
+    /**
+     * Returns how the link_url and image_url final URLs would be after resolving the placeholder interpolation.
+     *
+     * <pre><code>GitLab Endpoint: GET /projects/:id/badges/render</code></pre>
+     *
+     * @param projectIdOrPath the project in the form of an Integer(ID), String(path), or Project instance
+     * @param linkUrl the URL of the badge link
+     * @param imageUrl the URL of the image link
+     * @return a Badge instance for the rendered badge
+     * @throws GitLabApiException if any exception occurs
+     */
+    public Badge previewBadge(Object projectIdOrPath,  String linkUrl, String imageUrl) throws GitLabApiException {
+	GitLabApiForm formData = new GitLabApiForm()
+		.withParam("link_url", linkUrl, true)
+		.withParam("image_url", imageUrl, true);
+	Response response = get(Response.Status.OK, formData.asMap(), "projects", getProjectIdOrPath(projectIdOrPath), "badges", "render");
+	return (response.readEntity(Badge.class));
     }
 }

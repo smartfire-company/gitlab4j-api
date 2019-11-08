@@ -29,7 +29,7 @@ public class UserApi extends AbstractApi {
 
     private boolean customAttributesEnabled = false;
 
-    UserApi(GitLabApi gitLabApi) {
+    public UserApi(GitLabApi gitLabApi) {
         super(gitLabApi);
     }
 
@@ -366,6 +366,48 @@ public class UserApi extends AbstractApi {
     public Optional<User> getOptionalUserByEmail(String email) {
         try {
             return (Optional.ofNullable(getUserByEmail(email)));
+        } catch (GitLabApiException glae) {
+            return (GitLabApi.createOptionalFromException(glae));
+        }
+    }
+
+    /**
+     * Lookup a user by external UID.  Returns null if not found.
+     *
+     * <p>NOTE: This is for admin users only.</p>
+     *
+     * <pre><code>GitLab Endpoint: GET /users?extern_uid=:externalUid&amp;provider=:provider</code></pre>
+     *
+     * @param provider the provider of the external uid
+     * @param externalUid the external UID of the user
+     * @return the User instance for the specified external UID, or null if not found
+     * @throws GitLabApiException if any exception occurs
+     */
+    public User getUserByExternalUid(String provider, String externalUid) throws GitLabApiException {
+        GitLabApiForm formData = createGitLabApiForm()
+                .withParam("provider", provider, true)
+                .withParam("extern_uid", externalUid, true)
+                .withParam(PAGE_PARAM, 1)
+                .withParam(PER_PAGE_PARAM, 1);
+        Response response = get(Response.Status.OK, formData.asMap(), "users");
+        List<User> users = response.readEntity(new GenericType<List<User>>() {});
+        return (users.isEmpty() ? null : users.get(0));
+    }
+
+    /**
+     * Lookup a user by external UID and return an Optional instance.
+     *
+     * <p>NOTE: This is for admin users only.</p>
+     *
+     * <pre><code>GitLab Endpoint: GET /users?extern_uid=:externUid&amp;provider=:provider</code></pre>
+     *
+     * @param provider the provider of the external uid
+     * @param externalUid the external UID of the user
+     * @return the User for the specified external UID as an Optional instance
+     */
+    public Optional<User> getOptionalUserByExternalUid(String provider, String externalUid) {
+        try {
+            return (Optional.ofNullable(getUserByExternalUid(provider, externalUid)));
         } catch (GitLabApiException glae) {
             return (GitLabApi.createOptionalFromException(glae));
         }

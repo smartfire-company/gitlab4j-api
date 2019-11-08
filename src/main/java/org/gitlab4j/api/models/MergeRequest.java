@@ -31,6 +31,7 @@ public class MergeRequest {
     private Date mergedAt;
     private Participant mergedBy;
     private Boolean mergeWhenPipelineSucceeds;
+    private String mergeError;
     private Milestone milestone;
     private Integer projectId;
     private String sha;
@@ -54,7 +55,7 @@ public class MergeRequest {
 
     // The approval fields will only be available when listing approvals, approving  or unapproving a merge reuest.
     private Integer approvalsRequired;
-    private Integer approvalsMissing;
+    private Integer approvalsLeft;
 
     @JsonSerialize(using = JacksonJson.UserListSerializer.class)
     @JsonDeserialize(using = JacksonJson.UserListDeserializer.class)
@@ -226,6 +227,14 @@ public class MergeRequest {
 
     public void setMergeWhenPipelineSucceeds(Boolean mergeWhenPipelineSucceeds) {
         this.mergeWhenPipelineSucceeds = mergeWhenPipelineSucceeds;
+    }
+
+    public String getMergeError() {
+        return mergeError;
+    }
+
+    public void setMergeError(String mergeError) {
+        this.mergeError = mergeError;
     }
 
     public Milestone getMilestone() {
@@ -403,14 +412,14 @@ public class MergeRequest {
     }
 
     /**
-     * Get the number of approvals missing for the merge request.
+     * Get the number of approvals left for the merge request.
      *
      * NOTE: This property will only be used when listing, approiving, or unapproving a merge request.
      *
-     * @return the number of approvals missing for the merge request
+     * @return the number of approvals left for the merge request
      */
-    public Integer getApprovalsMissing() {
-        return approvalsMissing;
+    public Integer getApprovalsLeft() {
+        return approvalsLeft;
     }
 
     /**
@@ -418,10 +427,10 @@ public class MergeRequest {
      *
      * NOTE: This property will only be used when listing, approiving, or unapproving a merge request.
      *
-     * @param approvalsMissing the number of approvals missing for the merge request
+     * @param approvalsLeft the number of approvals missing for the merge request
      */
-    public void setApprovalsMissing(Integer approvalsMissing) {
-        this.approvalsMissing = approvalsMissing;
+    public void setApprovalsLeft(Integer approvalsLeft) {
+        this.approvalsLeft = approvalsLeft;
     }
 
     /**
